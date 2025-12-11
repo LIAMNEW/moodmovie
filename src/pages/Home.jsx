@@ -15,6 +15,43 @@ export default function Home() {
   const [shareMovie, setShareMovie] = useState(null);
 
   // Search Logic
+  // Helper to fetch images for movies that miss them
+  const enrichMoviesWithImages = async (movies) => {
+    const missingImages = movies.filter(m => !m.poster_url);
+    if (missingImages.length === 0) return;
+
+    // Process in parallel but don't block UI
+    missingImages.forEach(async (movie) => {
+      try {
+        const res = await base44.integrations.Core.InvokeLLM({
+          prompt: `Find a valid, high-quality movie poster URL for the movie: "${movie.title}" (${movie.year}).
+                   The URL must be a direct link to an image (jpg/png) from a public source like TMDb, Wikipedia, or standard movie databases.
+                   Return null if not found.`,
+          add_context_from_internet: true,
+          response_json_schema: {
+            type: "object",
+            properties: {
+              poster_url: { type: "string" }
+            }
+          }
+        });
+
+        if (res?.poster_url) {
+          // Update DB
+          await base44.entities.Movie.update(movie.id, { poster_url: res.poster_url });
+          
+          // Update UI
+          setRecommendations(prev => 
+            prev.map(p => p.id === movie.id ? { ...p, poster_url: res.poster_url } : p)
+          );
+        }
+      } catch (e) {
+        console.error("Failed to fetch image for", movie.title, e);
+      }
+    });
+  };
+
+  // Search Logic
   const handleSearch = async (initialCriteria) => {
     setLoading(true);
     let criteria = initialCriteria;
@@ -72,8 +109,12 @@ Be smart. "I want to laugh" = happy/silly. "Long day" = tired/cozy. "Adrenaline"
       });
 
       // Take top 5
-      setRecommendations(filtered.slice(0, 5));
+      const topPicks = filtered.slice(0, 5);
+      setRecommendations(topPicks);
       setStep('results');
+      
+      // Fetch missing images in background
+      enrichMoviesWithImages(topPicks);
     } catch (error) {
       console.error("Error fetching recommendations:", error);
     } finally {
