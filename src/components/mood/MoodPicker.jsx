@@ -18,17 +18,9 @@ const MOODS = [
   { id: 'silly', label: 'Silly', icon: Music, color: 'bg-green-500/20 text-green-400 border-green-500/50' },
 ];
 
-const TIME_OPTIONS = [
-  { value: 30, label: '30m', desc: 'Quick' },
-  { value: 60, label: '60m', desc: 'Short' },
-  { value: 90, label: '90m', desc: 'Avg' },
-  { value: 120, label: '120m+', desc: 'Long' },
-];
-
 export default function MoodPicker({ onSearch, isLoading }) {
   const [mood, setMood] = useState(null);
   const [energy, setEnergy] = useState([50]); // 0-100
-  const [time, setTime] = useState(90);
   const [prompt, setPrompt] = useState("");
 
   const getEnergyLabel = (val) => {
@@ -118,35 +110,13 @@ export default function MoodPicker({ onSearch, isLoading }) {
         </div>
       </section>
 
-      {/* Time Section */}
-      <section className="space-y-4">
-        <h2 className="text-lg font-semibold text-white">Time Available</h2>
-        <div className="grid grid-cols-4 gap-2">
-          {TIME_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              onClick={() => setTime(opt.value)}
-              className={`
-                flex flex-col items-center justify-center p-3 rounded-xl border transition-all
-                ${time === opt.value
-                  ? 'bg-slate-100 text-slate-900 border-white'
-                  : 'bg-slate-900/50 text-slate-400 border-slate-800 hover:bg-slate-800'}
-              `}
-            >
-              <span className="text-lg font-bold">{opt.label}</span>
-              <span className="text-[10px] opacity-70">{opt.desc}</span>
-            </button>
-          ))}
-        </div>
-      </section>
-
       {/* Action Button */}
       <div className="pt-4 sticky bottom-4 z-20">
         <Button 
           size="lg" 
           className="w-full h-14 text-lg font-bold bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 shadow-lg shadow-indigo-500/25 rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98]"
           disabled={(!mood && !prompt) || isLoading}
-          onClick={() => onSearch(prompt ? { prompt } : { mood, energy: getEnergyLabel(energy[0]).toLowerCase(), time })}
+          onClick={() => onSearch(prompt ? { prompt } : { mood, energy: getEnergyLabel(energy[0]).toLowerCase() })}
         >
           {isLoading ? (
             <span className="flex items-center gap-2">

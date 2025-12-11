@@ -64,15 +64,13 @@ User says: "${criteria.prompt}"
 Map to these exact values:
 - mood: happy, sad, anxious, romantic, tired, motivated, bored, cozy, intense, thrilling, silly
 - energy: low, medium, high
-- time: 30, 60, 90, 120 (approx minutes available)
 
 Be smart. "I want to laugh" = happy/silly. "Long day" = tired/cozy. "Adrenaline" = intense/high.`,
           response_json_schema: {
             type: "object",
             properties: {
               mood: { type: "string", enum: ["happy", "sad", "anxious", "romantic", "tired", "motivated", "bored", "cozy", "intense", "thrilling", "silly"] },
-              energy: { type: "string", enum: ["low", "medium", "high"] },
-              time: { type: "number" }
+              energy: { type: "string", enum: ["low", "medium", "high"] }
             },
             required: ["mood", "energy"]
           }
@@ -80,7 +78,7 @@ Be smart. "I want to laugh" = happy/silly. "Long day" = tired/cozy. "Adrenaline"
         
         // Merge AI results
         if (aiRes) {
-          criteria = { ...aiRes, time: aiRes.time || 90 };
+          criteria = aiRes;
         }
       }
 
@@ -145,13 +143,6 @@ Be smart. "I want to laugh" = happy/silly. "Long day" = tired/cozy. "Adrenaline"
           filtered = updatedAll.filter(m => m.primary_mood?.toLowerCase() === criteria.mood?.toLowerCase());
         }
       }
-
-      // Sort by duration proximity
-      filtered.sort((a, b) => {
-        const diffA = Math.abs((a.duration_minutes || 90) - criteria.time);
-        const diffB = Math.abs((b.duration_minutes || 90) - criteria.time);
-        return diffA - diffB;
-      });
 
       // Take top 5
       const topPicks = filtered.slice(0, 5);
