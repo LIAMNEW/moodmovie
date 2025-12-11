@@ -13,6 +13,7 @@ export default function Home() {
   const [recommendations, setRecommendations] = useState([]);
   const [userCriteria, setUserCriteria] = useState(null);
   const [shareMovie, setShareMovie] = useState(null);
+  const [sessionSeenIds, setSessionSeenIds] = useState(new Set());
 
   // Search Logic
   // Helper to fetch images for movies that miss them
@@ -90,7 +91,10 @@ Be smart. "I want to laugh" = happy/silly. "Long day" = tired/cozy. "Adrenaline"
       console.log('Fetched movies:', allMovies.length);
       
       // 2. Filter & Rank
-      let filtered = allMovies.filter(m => m.primary_mood?.toLowerCase() === criteria.mood?.toLowerCase());
+      let filtered = allMovies.filter(m => 
+        m.primary_mood?.toLowerCase() === criteria.mood?.toLowerCase() && 
+        !sessionSeenIds.has(m.id)
+      );
       
       // 3. EXPANSIVE MODE: If we don't have enough movies, generate new ones
       if (filtered.length < 5) {
@@ -152,6 +156,14 @@ Be smart. "I want to laugh" = happy/silly. "Long day" = tired/cozy. "Adrenaline"
       // Take top 5
       const topPicks = filtered.slice(0, 5);
       setRecommendations(topPicks);
+      
+      // Track seen movies for this session
+      setSessionSeenIds(prev => {
+        const next = new Set(prev);
+        topPicks.forEach(m => next.add(m.id));
+        return next;
+      });
+
       setStep('results');
       
       // Fetch missing images for the new picks
