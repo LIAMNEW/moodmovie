@@ -11,10 +11,7 @@ export default function HistoryPage() {
   // Fetch from backend
   const { data: historyData, refetch } = base44.hooks.useQuery({
     queryKey: ['history'],
-    queryFn: () => base44.entities.History.list({
-      sort: { watched_date: -1 },
-      limit: 50
-    })
+    queryFn: () => base44.entities.History.list('-watched_date', 50)
   });
 
   useEffect(() => {

@@ -52,10 +52,11 @@ Be smart. "I want to laugh" = happy/silly. "Long day" = tired/cozy. "Adrenaline"
       setUserCriteria(criteria);
 
       // 1. Fetch movies
-      const allMovies = await base44.entities.Movie.list({ limit: 100 });
+      const allMovies = await base44.entities.Movie.list(null, 100);
+      console.log('Fetched movies:', allMovies.length);
       
       // 2. Filter & Rank
-      let filtered = allMovies.filter(m => m.primary_mood === criteria.mood);
+      let filtered = allMovies.filter(m => m.primary_mood?.toLowerCase() === criteria.mood?.toLowerCase());
       
       // Fallback if low results: relax mood, enforce energy
       if (filtered.length < 3) {
