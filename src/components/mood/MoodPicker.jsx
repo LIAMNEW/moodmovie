@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Smile, Frown, Zap, Coffee, Moon, Heart, Flame, Music, Sun, CloudRain } from 'lucide-react';
+import { Smile, Frown, Zap, Coffee, Moon, Heart, Flame, Music, Sun, CloudRain, Sparkles } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
+import { Textarea } from "@/components/ui/textarea";
 
 const MOODS = [
   { id: 'happy', label: 'Happy', icon: Smile, color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50' },
@@ -28,6 +29,7 @@ export default function MoodPicker({ onSearch, isLoading }) {
   const [mood, setMood] = useState(null);
   const [energy, setEnergy] = useState([50]); // 0-100
   const [time, setTime] = useState(90);
+  const [prompt, setPrompt] = useState("");
 
   const getEnergyLabel = (val) => {
     if (val < 33) return 'Low';
@@ -38,8 +40,31 @@ export default function MoodPicker({ onSearch, isLoading }) {
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       
+      {/* AI Prompt Section */}
+      <section className="space-y-4 bg-indigo-950/30 p-4 rounded-2xl border border-indigo-500/20">
+        <div className="flex items-center gap-2 mb-2">
+          <Sparkles className="w-4 h-4 text-indigo-400" />
+          <h2 className="text-sm font-semibold text-indigo-200 uppercase tracking-wide">AI Mood Matcher</h2>
+        </div>
+        <Textarea 
+          placeholder="e.g. I had a long day at work and just want to laugh at something stupid..."
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          className="bg-slate-900/50 border-slate-700 focus:border-indigo-500 text-slate-200 resize-none h-24"
+        />
+      </section>
+
+      <div className="relative">
+        <div className="absolute inset-0 flex items-center">
+          <span className="w-full border-t border-slate-800" />
+        </div>
+        <div className="relative flex justify-center text-xs uppercase">
+          <span className="bg-slate-950 px-2 text-slate-500">Or pick manually</span>
+        </div>
+      </div>
+      
       {/* Mood Section */}
-      <section className="space-y-4">
+      <section className={`space-y-4 transition-opacity duration-300 ${prompt ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold text-white">How are you feeling?</h2>
           {mood && <span className="text-sm text-slate-400 animate-in fade-in">Nice choice.</span>}
@@ -120,13 +145,13 @@ export default function MoodPicker({ onSearch, isLoading }) {
         <Button 
           size="lg" 
           className="w-full h-14 text-lg font-bold bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 shadow-lg shadow-indigo-500/25 rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98]"
-          disabled={!mood || isLoading}
-          onClick={() => onSearch({ mood, energy: getEnergyLabel(energy[0]).toLowerCase(), time })}
+          disabled={(!mood && !prompt) || isLoading}
+          onClick={() => onSearch(prompt ? { prompt } : { mood, energy: getEnergyLabel(energy[0]).toLowerCase(), time })}
         >
           {isLoading ? (
             <span className="flex items-center gap-2">
               <span className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-              Finding matches...
+              {prompt ? "Analyzing Vibe..." : "Finding matches..."}
             </span>
           ) : (
             "Get my Mood Movies 🎬"

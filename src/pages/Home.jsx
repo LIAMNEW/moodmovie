@@ -15,11 +15,42 @@ export default function Home() {
   const [shareMovie, setShareMovie] = useState(null);
 
   // Search Logic
-  const handleSearch = async (criteria) => {
+  const handleSearch = async (initialCriteria) => {
     setLoading(true);
-    setUserCriteria(criteria);
+    let criteria = initialCriteria;
 
     try {
+      // 0. AI Analysis if prompt exists
+      if (criteria.prompt) {
+        const aiRes = await base44.integrations.Core.InvokeLLM({
+          prompt: `Analyze this user mood description and extract the most likely structured criteria for movie recommendation.
+User says: "${criteria.prompt}"
+
+Map to these exact values:
+- mood: happy, sad, anxious, romantic, tired, motivated, bored, cozy, intense, thrilling, silly
+- energy: low, medium, high
+- time: 30, 60, 90, 120 (approx minutes available)
+
+Be smart. "I want to laugh" = happy/silly. "Long day" = tired/cozy. "Adrenaline" = intense/high.`,
+          response_json_schema: {
+            type: "object",
+            properties: {
+              mood: { type: "string", enum: ["happy", "sad", "anxious", "romantic", "tired", "motivated", "bored", "cozy", "intense", "thrilling", "silly"] },
+              energy: { type: "string", enum: ["low", "medium", "high"] },
+              time: { type: "number" }
+            },
+            required: ["mood", "energy"]
+          }
+        });
+        
+        // Merge AI results
+        if (aiRes) {
+          criteria = { ...aiRes, time: aiRes.time || 90 };
+        }
+      }
+
+      setUserCriteria(criteria);
+
       // 1. Fetch movies
       const allMovies = await base44.entities.Movie.list({ limit: 100 });
       
@@ -44,23 +75,24 @@ export default function Home() {
       setStep('results');
     } catch (error) {
       console.error("Error fetching recommendations:", error);
-      // Fallback/Error state could go here
     } finally {
       setLoading(false);
     }
   };
 
-  const handleWatch = (movie) => {
-    // Save to LocalStorage History
-    const historyItem = {
-      title: movie.title,
-      mood: userCriteria.mood,
-      energy: userCriteria.energy,
-      date: new Date().toISOString()
-    };
-    
-    const currentHistory = JSON.parse(localStorage.getItem('moodmovie_history') || '[]');
-    localStorage.setItem('moodmovie_history', JSON.stringify([historyItem, ...currentHistory]));
+  const handleWatch = async (movie) => {
+    try {
+      // Save to Backend History
+      await base44.entities.History.create({
+        movie_title: movie.title,
+        movie_year: movie.year,
+        mood_context: userCriteria.mood,
+        energy_context: userCriteria.energy,
+        watched_date: new Date().toISOString()
+      });
+    } catch (err) {
+      console.error("Failed to save history", err);
+    }
 
     // Show Share Card
     setShareMovie(movie);

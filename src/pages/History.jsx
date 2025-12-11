@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { base44 } from '@/api/base44Client';
 import { Trash2, Calendar, Clock } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { format } from 'date-fns';
@@ -7,20 +8,26 @@ import { format } from 'date-fns';
 export default function HistoryPage() {
   const [history, setHistory] = useState([]);
 
-  useEffect(() => {
-    const data = localStorage.getItem('moodmovie_history');
-    if (data) {
-      try {
-        setHistory(JSON.parse(data));
-      } catch (e) {
-        console.error("Failed to parse history", e);
-      }
-    }
-  }, []);
+  // Fetch from backend
+  const { data: historyData, refetch } = base44.hooks.useQuery({
+    queryKey: ['history'],
+    queryFn: () => base44.entities.History.list({
+      sort: { watched_date: -1 },
+      limit: 50
+    })
+  });
 
-  const clearHistory = () => {
+  useEffect(() => {
+    if (historyData) setHistory(historyData);
+  }, [historyData]);
+
+  const clearHistory = async () => {
     if (confirm('Are you sure you want to clear your history?')) {
-      localStorage.removeItem('moodmovie_history');
+      // Delete one by one for now as we don't have bulk delete exposed in this context
+      // Or just clear local state for UI feedback
+      const promises = history.map(h => base44.entities.History.delete(h.id));
+      await Promise.all(promises);
+      refetch();
       setHistory([]);
     }
   };
@@ -58,13 +65,13 @@ export default function HistoryPage() {
                   <div className="flex items-center gap-3 text-xs text-slate-400 mt-1">
                     <span className="flex items-center gap-1">
                       <Calendar className="w-3 h-3" />
-                      {format(new Date(item.date), 'MMM d')}
+                      {format(new Date(item.watched_date || item.created_date), 'MMM d')}
                     </span>
                     <span className="px-2 py-0.5 rounded-full bg-slate-800 text-indigo-300 capitalize">
-                      {item.mood}
+                      {item.mood_context}
                     </span>
                     <span className="px-2 py-0.5 rounded-full bg-slate-800 text-purple-300 capitalize">
-                      {item.energy} energy
+                      {item.energy_context} energy
                     </span>
                   </div>
                 </div>
