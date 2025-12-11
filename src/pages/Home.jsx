@@ -20,13 +20,13 @@ export default function Home() {
     const missingImages = movies.filter(m => !m.poster_url);
     if (missingImages.length === 0) return;
 
-    // Process in parallel but don't block UI
-    missingImages.forEach(async (movie) => {
+    // Process one by one to avoid rate limits or overwhelming the LLM
+    for (const movie of missingImages) {
       try {
         const res = await base44.integrations.Core.InvokeLLM({
-          prompt: `Find a valid, high-quality movie poster URL for the movie: "${movie.title}" (${movie.year}).
-                   The URL must be a direct link to an image (jpg/png) from a public source like TMDb, Wikipedia, or standard movie databases.
-                   Return null if not found.`,
+          prompt: `Find a verifiable, high-resolution movie poster URL for "${movie.title}" (${movie.year}). 
+                   Prefer links from: image.tmdb.org, m.media-amazon.com, or upload.wikimedia.org.
+                   Ensure the URL ends in .jpg or .png.`,
           add_context_from_internet: true,
           response_json_schema: {
             type: "object",
@@ -37,18 +37,15 @@ export default function Home() {
         });
 
         if (res?.poster_url) {
-          // Update DB
           await base44.entities.Movie.update(movie.id, { poster_url: res.poster_url });
-          
-          // Update UI
           setRecommendations(prev => 
             prev.map(p => p.id === movie.id ? { ...p, poster_url: res.poster_url } : p)
           );
         }
       } catch (e) {
-        console.error("Failed to fetch image for", movie.title, e);
+        console.error("Failed image fetch:", movie.title);
       }
-    });
+    }
   };
 
   // Search Logic
@@ -95,10 +92,54 @@ Be smart. "I want to laugh" = happy/silly. "Long day" = tired/cozy. "Adrenaline"
       // 2. Filter & Rank
       let filtered = allMovies.filter(m => m.primary_mood?.toLowerCase() === criteria.mood?.toLowerCase());
       
-      // Fallback if low results: relax mood, enforce energy
-      if (filtered.length < 3) {
-        const energyMatches = allMovies.filter(m => m.energy_level === criteria.energy && m.primary_mood !== criteria.mood);
-        filtered = [...filtered, ...energyMatches];
+      // 3. EXPANSIVE MODE: If we don't have enough movies, generate new ones
+      if (filtered.length < 5) {
+        console.log("Expanding library with AI...");
+        const newMoviesRaw = await base44.integrations.Core.InvokeLLM({
+          prompt: `Generate 5 UNIQUE, REAL movie recommendations for a user feeling "${criteria.mood}" with "${criteria.energy}" energy.
+                   Exclude these existing movies: ${allMovies.map(m => m.title).join(", ")}.
+                   Return a list of movies with accurate details. 
+                   For 'poster_url', leave it empty string, we will fetch it later.`,
+          response_json_schema: {
+            type: "object",
+            properties: {
+              movies: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    title: { type: "string" },
+                    year: { type: "number" },
+                    description: { type: "string" },
+                    duration_minutes: { type: "number" },
+                    primary_mood: { type: "string", enum: ["happy", "sad", "anxious", "romantic", "tired", "motivated", "bored", "cozy", "intense", "thrilling", "silly"] },
+                    energy_level: { type: "string", enum: ["low", "medium", "high"] },
+                    genres: { type: "array", items: { type: "string" } },
+                    tags: { type: "array", items: { type: "string" } }
+                  },
+                  required: ["title", "year", "primary_mood", "energy_level"]
+                }
+              }
+            }
+          }
+        });
+
+        if (newMoviesRaw?.movies?.length > 0) {
+          // Normalize and Insert new movies
+          const moviesToCreate = newMoviesRaw.movies.map(m => ({
+            ...m,
+            primary_mood: criteria.mood, // Enforce the requested mood
+            energy_level: criteria.energy, // Enforce the requested energy
+            platform: "Streaming",
+            streaming_providers: ["Netflix", "Prime", "Disney+"] // Placeholders until real integration
+          }));
+
+          await base44.entities.Movie.bulkCreate(moviesToCreate);
+          
+          // Re-fetch to get IDs and fresh data
+          const updatedAll = await base44.entities.Movie.list(null, 100);
+          filtered = updatedAll.filter(m => m.primary_mood?.toLowerCase() === criteria.mood?.toLowerCase());
+        }
       }
 
       // Sort by duration proximity
@@ -113,7 +154,7 @@ Be smart. "I want to laugh" = happy/silly. "Long day" = tired/cozy. "Adrenaline"
       setRecommendations(topPicks);
       setStep('results');
       
-      // Fetch missing images in background
+      // Fetch missing images for the new picks
       enrichMoviesWithImages(topPicks);
     } catch (error) {
       console.error("Error fetching recommendations:", error);
