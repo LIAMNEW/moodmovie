@@ -107,6 +107,7 @@ export default function HistoryPage() {
                   size="icon"
                   onClick={() => toggleFavorite(item)}
                   className={`transition-all ${item.is_favorite ? 'text-pink-500 hover:text-pink-600' : 'text-slate-600 hover:text-pink-500 hover:bg-pink-500/10'}`}
+                  title={item.is_favorite ? "Remove from favorites" : "Add to favorites"}
                 >
                   <Heart className={`w-5 h-5 ${item.is_favorite ? 'fill-current' : ''}`} />
                 </Button>
