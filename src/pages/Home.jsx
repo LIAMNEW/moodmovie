@@ -83,9 +83,6 @@ export default function Home() {
           prompt: `Analyze this user mood description and extract the most likely structured criteria for movie recommendation.
 User says: "${sanitizedPrompt}"
 
-          prompt: `Analyze this user mood description and extract the most likely structured criteria for movie recommendation.
-User says: "${criteria.prompt}"
-
 Map to these exact values:
 - mood: happy, sad, anxious, romantic, tired, motivated, bored, cozy, intense, thrilling, silly
 - energy: low, medium, high
