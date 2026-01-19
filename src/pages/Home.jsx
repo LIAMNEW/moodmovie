@@ -119,15 +119,22 @@ Also extract any specific nuances, sub-genres, or stylistic preferences mentione
           .join(", ");
 
         const diversityPrompt = recentWatched 
-          ? `User recently watched: ${recentWatched}. Suggest diverse options that fit the current mood but offer variety in genre/style.` 
+          ? `User recently watched: ${recentWatched}. Suggest diverse options.` 
           : "";
 
         const newMoviesRaw = await base44.integrations.Core.InvokeLLM({
-          prompt: `Act as a movie database API (like TMDb/OMDb). Find 5 UNIQUE, REAL movie recommendations for a user feeling "${criteria.mood}" with "${criteria.energy}" energy.
+          prompt: `Act as a movie database API. Find 5 UNIQUE, REAL movie recommendations for a user feeling "${criteria.mood}" with "${criteria.energy}" energy.
+                   
+                   CRITICAL DIVERSITY RULES:
+                   1. Mix Decades: Include movies from at least 3 different decades (e.g. 80s, 90s, 2010s).
+                   2. Mix Genres: Even within "${criteria.mood}", vary the genres (e.g. Animation, Indie, Blockbuster, Foreign).
+                   3. The Wildcard: The 5th movie MUST be a "Wildcard" - a movie that fits a slightly different mood/energy but would still appeal to the user (e.g. if 'happy', try 'motivated' or 'silly').
+                   
                    ${promptNuance}
                    ${diversityPrompt}
                    Exclude these existing movies: ${allMovies.map(m => m.title).join(", ")}.
                    Also exclude: ${Array.from(seenTitles).join(", ")}.
+                   
                    Return detailed metadata including director, top cast, and IMDb rating.
                    For 'poster_url', leave it empty string, we will fetch it later.`,
           add_context_from_internet: true,
@@ -162,8 +169,7 @@ Also extract any specific nuances, sub-genres, or stylistic preferences mentione
           // Normalize and Insert new movies
           const moviesToCreate = newMoviesRaw.movies.map(m => ({
             ...m,
-            primary_mood: criteria.mood, // Enforce the requested mood
-            energy_level: criteria.energy, // Enforce the requested energy
+            // Do NOT enforce strict mood/energy here to allow for the Wildcard and Diversity
             platform: "Streaming",
             streaming_providers: ["Netflix", "Prime", "Disney+"] // Placeholders until real integration
           }));
@@ -172,7 +178,13 @@ Also extract any specific nuances, sub-genres, or stylistic preferences mentione
           
           // Re-fetch to get IDs and fresh data
           const updatedAll = await base44.entities.Movie.list(null, 100);
-          filtered = updatedAll.filter(m => m.primary_mood?.toLowerCase() === criteria.mood?.toLowerCase());
+          
+          // Filter: Match the mood OR match the newly generated titles (so we include the wildcard)
+          const newTitles = new Set(newMoviesRaw.movies.map(m => m.title.toLowerCase()));
+          filtered = updatedAll.filter(m => 
+            m.primary_mood?.toLowerCase() === criteria.mood?.toLowerCase() || 
+            newTitles.has(m.title.toLowerCase())
+          );
         }
       }
 
