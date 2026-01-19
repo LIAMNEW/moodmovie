@@ -13,7 +13,14 @@ export default function Home() {
   const [recommendations, setRecommendations] = useState([]);
   const [userCriteria, setUserCriteria] = useState(null);
   const [shareMovie, setShareMovie] = useState(null);
-  const [sessionSeenIds, setSessionSeenIds] = useState(new Set());
+  const [userHistory, setUserHistory] = useState([]);
+
+  // Load user history on mount
+  useEffect(() => {
+    base44.entities.History.list('-timestamp', 100).then(data => {
+      setUserHistory(data);
+    });
+  }, []);
 
   // Search Logic
   // Helper to fetch images for movies that miss them
@@ -91,20 +98,36 @@ Also extract any specific nuances, sub-genres, or stylistic preferences mentione
       console.log('Fetched movies:', allMovies.length);
       
       // 2. Filter & Rank
+      // Filter out movies user has already watched or skipped
+      const seenTitles = new Set(userHistory.map(h => h.movie_title.toLowerCase()));
+
       let filtered = allMovies.filter(m => 
         m.primary_mood?.toLowerCase() === criteria.mood?.toLowerCase() && 
-        !sessionSeenIds.has(m.id)
+        !seenTitles.has(m.title.toLowerCase())
       );
-      
+
       // 3. EXPANSIVE MODE: If we don't have enough movies, generate new ones
       if (filtered.length < 5) {
         console.log("Expanding library with AI...");
         const promptNuance = criteria.nuance ? `Focus specifically on: ${criteria.nuance}.` : "";
 
+        // Get recent watched movies for context
+        const recentWatched = userHistory
+          .filter(h => h.action === 'watched')
+          .slice(0, 5)
+          .map(h => h.movie_title)
+          .join(", ");
+
+        const diversityPrompt = recentWatched 
+          ? `User recently watched: ${recentWatched}. Suggest diverse options that fit the current mood but offer variety in genre/style.` 
+          : "";
+
         const newMoviesRaw = await base44.integrations.Core.InvokeLLM({
           prompt: `Act as a movie database API (like TMDb/OMDb). Find 5 UNIQUE, REAL movie recommendations for a user feeling "${criteria.mood}" with "${criteria.energy}" energy.
                    ${promptNuance}
+                   ${diversityPrompt}
                    Exclude these existing movies: ${allMovies.map(m => m.title).join(", ")}.
+                   Also exclude: ${Array.from(seenTitles).join(", ")}.
                    Return detailed metadata including director, top cast, and IMDb rating.
                    For 'poster_url', leave it empty string, we will fetch it later.`,
           add_context_from_internet: true,
@@ -157,13 +180,6 @@ Also extract any specific nuances, sub-genres, or stylistic preferences mentione
       const topPicks = filtered.slice(0, 5);
       setRecommendations(topPicks);
       
-      // Track seen movies for this session
-      setSessionSeenIds(prev => {
-        const next = new Set(prev);
-        topPicks.forEach(m => next.add(m.id));
-        return next;
-      });
-
       setStep('results');
       
       // Fetch missing images for the new picks
@@ -178,13 +194,17 @@ Also extract any specific nuances, sub-genres, or stylistic preferences mentione
   const handleWatch = async (movie) => {
     try {
       // Save to Backend History
-      await base44.entities.History.create({
+      const entry = {
+        movie_id: movie.id,
         movie_title: movie.title,
         movie_year: movie.year,
         mood_context: userCriteria.mood,
         energy_context: userCriteria.energy,
-        watched_date: new Date().toISOString()
-      });
+        action: 'watched',
+        timestamp: new Date().toISOString()
+      };
+      await base44.entities.History.create(entry);
+      setUserHistory(prev => [entry, ...prev]);
     } catch (err) {
       console.error("Failed to save history", err);
     }
@@ -193,7 +213,24 @@ Also extract any specific nuances, sub-genres, or stylistic preferences mentione
     setShareMovie(movie);
   };
 
-  const handleReject = (movie) => {
+  const handleReject = async (movie) => {
+    // Save rejection to backend to avoid recommending again
+    try {
+      const entry = {
+        movie_id: movie.id,
+        movie_title: movie.title,
+        movie_year: movie.year,
+        mood_context: userCriteria.mood,
+        energy_context: userCriteria.energy,
+        action: 'skipped',
+        timestamp: new Date().toISOString()
+      };
+      base44.entities.History.create(entry); // fire and forget
+      setUserHistory(prev => [entry, ...prev]);
+    } catch (err) {
+      console.error("Failed to save skip", err);
+    }
+
     // Remove this movie from list
     const newRecs = recommendations.filter(m => m.id !== movie.id);
     

@@ -11,11 +11,12 @@ export default function HistoryPage() {
   // Fetch from backend
   const { data: historyData, refetch } = base44.hooks.useQuery({
     queryKey: ['history'],
-    queryFn: () => base44.entities.History.list('-watched_date', 50)
+    queryFn: () => base44.entities.History.list('-timestamp', 100)
   });
 
   useEffect(() => {
-    if (historyData) setHistory(historyData);
+    // Only show watched movies in the UI
+    if (historyData) setHistory(historyData.filter(h => h.action === 'watched'));
   }, [historyData]);
 
   const clearHistory = async () => {
@@ -60,13 +61,13 @@ export default function HistoryPage() {
                 <div>
                   <h3 className="font-bold text-lg text-white">{item.title}</h3>
                   <div className="flex items-center gap-3 text-xs text-slate-400 mt-1">
-                    <span className="flex items-center gap-1">
-                      <Calendar className="w-3 h-3" />
-                      {format(new Date(item.watched_date || item.created_date), 'MMM d')}
-                    </span>
-                    <span className="px-2 py-0.5 rounded-full bg-slate-800 text-indigo-300 capitalize">
-                      {item.mood_context}
-                    </span>
+                  <span className="flex items-center gap-1">
+                    <Calendar className="w-3 h-3" />
+                    {format(new Date(item.timestamp || item.created_date), 'MMM d')}
+                  </span>
+                  <span className="px-2 py-0.5 rounded-full bg-slate-800 text-indigo-300 capitalize">
+                    {item.mood_context}
+                  </span>
                     <span className="px-2 py-0.5 rounded-full bg-slate-800 text-purple-300 capitalize">
                       {item.energy_context} energy
                     </span>
