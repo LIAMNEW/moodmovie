@@ -22,6 +22,11 @@ export default function MoodPicker({ onSearch, isLoading }) {
   const [mood, setMood] = useState(null);
   const [energy, setEnergy] = useState([50]); // 0-100
   const [prompt, setPrompt] = useState("");
+  const [error, setError] = useState("");
+
+  // OWASP: Input Validation Constants
+  const MAX_PROMPT_LENGTH = 500;
+  const INVALID_CHARS_REGEX = /[<>]/; // Basic XSS check (though React handles this, good to be explicit)
 
   const getEnergyLabel = (val) => {
     if (val < 33) return 'Low';
@@ -41,9 +46,23 @@ export default function MoodPicker({ onSearch, isLoading }) {
         <Textarea 
           placeholder="e.g. I had a long day at work and just want to laugh at something stupid..."
           value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
+          onChange={(e) => {
+            const val = e.target.value;
+            if (val.length <= MAX_PROMPT_LENGTH) {
+              setPrompt(val);
+              setError("");
+            } else {
+              setError(`Max ${MAX_PROMPT_LENGTH} characters allowed`);
+            }
+          }}
           className="bg-slate-900/50 border-slate-700 focus:border-indigo-500 text-slate-200 resize-none h-24"
         />
+        <div className="flex justify-between text-xs">
+          <span className="text-red-400">{error}</span>
+          <span className={`${prompt.length > MAX_PROMPT_LENGTH * 0.9 ? 'text-orange-400' : 'text-slate-500'}`}>
+            {prompt.length}/{MAX_PROMPT_LENGTH}
+          </span>
+        </div>
       </section>
 
       <div className="relative">
@@ -116,8 +135,15 @@ export default function MoodPicker({ onSearch, isLoading }) {
           size="lg" 
           className="w-full h-14 text-lg font-bold bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 shadow-lg shadow-indigo-500/25 rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98]"
           disabled={(!mood && !prompt) || isLoading}
-          onClick={() => onSearch(prompt ? { prompt } : { mood, energy: getEnergyLabel(energy[0]).toLowerCase() })}
-        >
+          onClick={() => {
+            if (prompt && INVALID_CHARS_REGEX.test(prompt)) {
+              setError("Please remove special characters like < or >");
+              return;
+            }
+            if (error) return;
+            onSearch(prompt ? { prompt: prompt.trim() } : { mood, energy: getEnergyLabel(energy[0]).toLowerCase() });
+          }}
+          >
           {isLoading ? (
             <span className="flex items-center gap-2">
               <span className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />

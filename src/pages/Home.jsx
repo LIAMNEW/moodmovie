@@ -14,6 +14,10 @@ export default function Home() {
   const [userCriteria, setUserCriteria] = useState(null);
   const [shareMovie, setShareMovie] = useState(null);
   const [userHistory, setUserHistory] = useState([]);
+  
+  // Security: Rate Limiting State
+  const lastSearchTime = React.useRef(0);
+  const SEARCH_COOLDOWN_MS = 5000; // 5 seconds cooldown
 
   // Load user history on mount
   useEffect(() => {
@@ -58,13 +62,27 @@ export default function Home() {
 
   // Search Logic
   const handleSearch = async (initialCriteria) => {
+    // Security: Rate Limiting Check
+    const now = Date.now();
+    if (now - lastSearchTime.current < SEARCH_COOLDOWN_MS) {
+      alert(`Please wait ${Math.ceil((SEARCH_COOLDOWN_MS - (now - lastSearchTime.current)) / 1000)}s before searching again.`);
+      return;
+    }
+    lastSearchTime.current = now;
+
     setLoading(true);
     let criteria = initialCriteria;
 
     try {
       // 0. AI Analysis if prompt exists
       if (criteria.prompt) {
+        // Security: Sanitization (already validated in UI, but good double check)
+        const sanitizedPrompt = criteria.prompt.slice(0, 500).replace(/[<>]/g, "");
+        
         const aiRes = await base44.integrations.Core.InvokeLLM({
+          prompt: `Analyze this user mood description and extract the most likely structured criteria for movie recommendation.
+User says: "${sanitizedPrompt}"
+
           prompt: `Analyze this user mood description and extract the most likely structured criteria for movie recommendation.
 User says: "${criteria.prompt}"
 
