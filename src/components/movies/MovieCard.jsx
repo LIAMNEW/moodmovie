@@ -56,21 +56,35 @@ export default function MovieCard({ movie, onWatch, onReject, onShare }) {
       {/* Content */}
       <div className="p-5 space-y-4">
         {/* Meta Row */}
-        <div className="flex items-center gap-4 text-sm text-slate-400">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-slate-400">
           <div className="flex items-center gap-1.5">
             <Clock className="w-4 h-4 text-indigo-400" />
-            <span>{movie.duration_minutes} min</span>
+            <span>{movie.duration_minutes}m</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <Tv className="w-4 h-4 text-purple-400" />
-            <span>{movie.platform || 'Streaming'}</span>
-          </div>
+          {movie.imdb_rating && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-yellow-500 font-bold">★</span>
+              <span>{movie.imdb_rating}/10</span>
+            </div>
+          )}
+          {movie.director && (
+            <div className="text-slate-500">
+              Dir. <span className="text-slate-300">{movie.director}</span>
+            </div>
+          )}
         </div>
 
         {/* Description */}
-        <p className="text-slate-300 leading-relaxed text-sm">
+        <p className="text-slate-300 leading-relaxed text-sm line-clamp-3">
           {movie.description}
         </p>
+
+        {/* Cast */}
+        {movie.cast && movie.cast.length > 0 && (
+          <div className="text-xs text-slate-500">
+            With: <span className="text-slate-400">{movie.cast.slice(0, 3).join(", ")}</span>
+          </div>
+        )}
 
         {/* Tags */}
         <div className="flex flex-wrap gap-2">

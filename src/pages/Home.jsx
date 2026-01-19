@@ -65,12 +65,14 @@ Map to these exact values:
 - mood: happy, sad, anxious, romantic, tired, motivated, bored, cozy, intense, thrilling, silly
 - energy: low, medium, high
 
-Be smart. "I want to laugh" = happy/silly. "Long day" = tired/cozy. "Adrenaline" = intense/high.`,
+Be smart. "I want to laugh" = happy/silly. "Long day" = tired/cozy. "Adrenaline" = intense/high.
+Also extract any specific nuances, sub-genres, or stylistic preferences mentioned (e.g. "80s sci-fi", "dark comedy", "Wes Anderson style").`,
           response_json_schema: {
             type: "object",
             properties: {
               mood: { type: "string", enum: ["happy", "sad", "anxious", "romantic", "tired", "motivated", "bored", "cozy", "intense", "thrilling", "silly"] },
-              energy: { type: "string", enum: ["low", "medium", "high"] }
+              energy: { type: "string", enum: ["low", "medium", "high"] },
+              nuance: { type: "string", description: "Specific sub-genre, style, or topic keywords to refine search" }
             },
             required: ["mood", "energy"]
           }
@@ -97,11 +99,15 @@ Be smart. "I want to laugh" = happy/silly. "Long day" = tired/cozy. "Adrenaline"
       // 3. EXPANSIVE MODE: If we don't have enough movies, generate new ones
       if (filtered.length < 5) {
         console.log("Expanding library with AI...");
+        const promptNuance = criteria.nuance ? `Focus specifically on: ${criteria.nuance}.` : "";
+
         const newMoviesRaw = await base44.integrations.Core.InvokeLLM({
-          prompt: `Generate 5 UNIQUE, REAL movie recommendations for a user feeling "${criteria.mood}" with "${criteria.energy}" energy.
+          prompt: `Act as a movie database API (like TMDb/OMDb). Find 5 UNIQUE, REAL movie recommendations for a user feeling "${criteria.mood}" with "${criteria.energy}" energy.
+                   ${promptNuance}
                    Exclude these existing movies: ${allMovies.map(m => m.title).join(", ")}.
-                   Return a list of movies with accurate details. 
+                   Return detailed metadata including director, top cast, and IMDb rating.
                    For 'poster_url', leave it empty string, we will fetch it later.`,
+          add_context_from_internet: true,
           response_json_schema: {
             type: "object",
             properties: {
@@ -117,7 +123,10 @@ Be smart. "I want to laugh" = happy/silly. "Long day" = tired/cozy. "Adrenaline"
                     primary_mood: { type: "string", enum: ["happy", "sad", "anxious", "romantic", "tired", "motivated", "bored", "cozy", "intense", "thrilling", "silly"] },
                     energy_level: { type: "string", enum: ["low", "medium", "high"] },
                     genres: { type: "array", items: { type: "string" } },
-                    tags: { type: "array", items: { type: "string" } }
+                    tags: { type: "array", items: { type: "string" } },
+                    director: { type: "string" },
+                    cast: { type: "array", items: { type: "string" } },
+                    imdb_rating: { type: "number" }
                   },
                   required: ["title", "year", "primary_mood", "energy_level"]
                 }

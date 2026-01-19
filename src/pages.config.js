@@ -1,11 +1,11 @@
-import Home from './pages/Home';
 import History from './pages/History';
+import Home from './pages/Home';
 import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
-    "Home": Home,
     "History": History,
+    "Home": Home,
 }
 
 export const pagesConfig = {
