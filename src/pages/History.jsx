@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { base44 } from '@/api/base44Client';
+import { useQuery } from "@tanstack/react-query";
 import { Trash2, Calendar, Clock, Heart } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -11,7 +12,7 @@ export default function HistoryPage() {
   const [view, setView] = useState('all');
 
   // Fetch from backend
-  const { data: historyData, refetch } = base44.hooks.useQuery({
+  const { data: historyData, refetch } = useQuery({
     queryKey: ['history'],
     queryFn: () => base44.entities.History.list('-timestamp', 100)
   });
