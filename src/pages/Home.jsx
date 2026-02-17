@@ -27,37 +27,42 @@ export default function Home() {
   }, []);
 
   // Search Logic
-  // Helper to fetch images for movies that miss them
+  // Helper to fetch images for movies that miss them (Parallel)
   const enrichMoviesWithImages = async (movies) => {
     const missingImages = movies.filter(m => !m.poster_url);
     if (missingImages.length === 0) return;
 
-    // Process one by one to avoid rate limits or overwhelming the LLM
-    for (const movie of missingImages) {
+    // Process in parallel for speed
+    await Promise.all(missingImages.map(async (movie) => {
       try {
         const res = await base44.integrations.Core.InvokeLLM({
-          prompt: `Find a verifiable, high-resolution movie poster URL for "${movie.title}" (${movie.year}). 
-                   Prefer links from: image.tmdb.org, m.media-amazon.com, or upload.wikimedia.org.
-                   Ensure the URL ends in .jpg or .png.`,
+          prompt: `Find the official movie poster URL for "${movie.title}" (${movie.year}).
+                   Return a direct link to a high-quality JPG/PNG image.
+                   Prioritize: TMDB (image.tmdb.org), Amazon, or Wikipedia.
+                   If you can't find a high-res one, find a decent one.`,
           add_context_from_internet: true,
           response_json_schema: {
             type: "object",
             properties: {
               poster_url: { type: "string" }
-            }
+            },
+            required: ["poster_url"]
           }
         });
 
         if (res?.poster_url) {
-          await base44.entities.Movie.update(movie.id, { poster_url: res.poster_url });
+          // Update DB
+          base44.entities.Movie.update(movie.id, { poster_url: res.poster_url });
+          
+          // Update UI instantly
           setRecommendations(prev => 
             prev.map(p => p.id === movie.id ? { ...p, poster_url: res.poster_url } : p)
           );
         }
       } catch (e) {
-        console.error("Failed image fetch:", movie.title);
+        console.error("Failed image fetch for:", movie.title);
       }
-    }
+    }));
   };
 
   // Search Logic
