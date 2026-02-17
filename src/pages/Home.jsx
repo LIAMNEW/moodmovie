@@ -287,27 +287,47 @@ Also extract any specific nuances, sub-genres, or stylistic preferences mentione
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="flex-1 flex flex-col items-center justify-center text-center space-y-8 py-12"
+            className="flex-1 flex flex-col items-center justify-center text-center space-y-12 py-20 relative"
           >
-            <div className="space-y-4 max-w-xs mx-auto">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 mb-4 shadow-lg shadow-purple-500/30">
-                <Sparkles className="w-8 h-8 text-white animate-pulse" />
+            <div className="space-y-6 max-w-lg mx-auto relative z-10">
+              {/* Glowing Icon */}
+              <div className="relative inline-block mb-6">
+                <div className="absolute inset-0 bg-fuchsia-500 blur-2xl opacity-40 animate-pulse rounded-full" />
+                <div className="relative z-10 w-20 h-20 bg-gradient-to-tr from-violet-600 to-fuchsia-500 rounded-3xl shadow-2xl flex items-center justify-center rotate-3 transition-transform hover:rotate-6 duration-500">
+                   <Sparkles className="w-10 h-10 text-white drop-shadow-md" />
+                </div>
               </div>
-              <h1 className="text-4xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-br from-white via-indigo-100 to-indigo-300">
-                Find the perfect movie for your mood.
+
+              {/* Typography */}
+              <h1 className="text-5xl sm:text-7xl font-bold tracking-tight text-white leading-[1.1]">
+                Your mood.<br />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-violet-400 via-fuchsia-400 to-purple-400">
+                  Your movie.
+                </span>
               </h1>
-              <p className="text-slate-400 text-lg leading-relaxed">
-                Tell us how you feel and how much time you’ve got. We’ll do the rest.
+              
+              <p className="text-slate-400 text-lg sm:text-xl max-w-md mx-auto font-medium leading-relaxed">
+                Tell AI how you're feeling. Get the perfect movie in seconds.
               </p>
             </div>
 
-            <Button 
-              size="lg" 
-              onClick={() => setStep('input')}
-              className="h-14 px-8 text-lg rounded-full bg-white text-slate-950 hover:bg-slate-200 font-bold transition-all hover:scale-105 shadow-xl shadow-white/10"
-            >
-              Pick my mood 🎬
-            </Button>
+            {/* CTA Button */}
+            <div className="relative group">
+              <div className="absolute -inset-1 bg-gradient-to-r from-violet-600 to-fuchsia-600 rounded-full blur opacity-40 group-hover:opacity-75 transition duration-500" />
+              <Button 
+                size="lg" 
+                onClick={() => setStep('input')}
+                className="relative h-14 px-10 text-lg rounded-full bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white hover:from-violet-500 hover:to-fuchsia-500 font-semibold tracking-wide transition-all hover:scale-[1.02] shadow-2xl shadow-purple-900/50 border border-white/10"
+              >
+                <Sparkles className="w-5 h-5 mr-2" />
+                Get started
+                <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+              </Button>
+            </div>
+            
+            <div className="pt-12">
+               <span className="text-[10px] font-bold tracking-[0.2em] text-slate-700 uppercase">AI-POWERED RECOMMENDATIONS</span>
+            </div>
           </motion.div>
         )}
 
