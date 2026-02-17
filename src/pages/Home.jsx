@@ -340,9 +340,14 @@ Also extract any specific nuances, sub-genres, or stylistic preferences mentione
             exit={{ opacity: 0, x: -20 }}
             className="flex-1 py-6"
           >
-            <div className="mb-6 flex items-center gap-2">
-               <Button variant="ghost" size="sm" onClick={() => setStep('landing')} className="text-slate-500 hover:text-white -ml-2">
-                 ← Back
+            <div className="mb-8 flex items-center">
+               <Button 
+                 variant="ghost" 
+                 size="sm" 
+                 onClick={() => setStep('landing')} 
+                 className="text-slate-400 hover:text-white hover:bg-white/5 transition-all -ml-2 rounded-full px-4"
+               >
+                 ← Back to Home
                </Button>
             </div>
             <MoodPicker onSearch={handleSearch} isLoading={loading} />
