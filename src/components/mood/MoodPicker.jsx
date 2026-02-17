@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Smile, Frown, Zap, Coffee, Moon, Heart, Flame, Music, Sun, CloudRain, Sparkles } from 'lucide-react';
+import { Smile, Frown, Zap, Coffee, Moon, Heart, Flame, Music, Sun, CloudRain, Sparkles, Wand2, LayoutGrid } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 
 const MOODS = [
   { id: 'happy', label: 'Happy', icon: Smile, color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/50' },
@@ -19,6 +20,7 @@ const MOODS = [
 ];
 
 export default function MoodPicker({ onSearch, isLoading }) {
+  const [activeTab, setActiveTab] = useState("ai");
   const [mood, setMood] = useState(null);
   const [energy, setEnergy] = useState([50]); // 0-100
   const [prompt, setPrompt] = useState("");
@@ -26,7 +28,7 @@ export default function MoodPicker({ onSearch, isLoading }) {
 
   // OWASP: Input Validation Constants
   const MAX_PROMPT_LENGTH = 500;
-  const INVALID_CHARS_REGEX = /[<>]/; // Basic XSS check (though React handles this, good to be explicit)
+  const INVALID_CHARS_REGEX = /[<>]/; 
 
   const getEnergyLabel = (val) => {
     if (val < 33) return 'Low';
@@ -34,94 +36,129 @@ export default function MoodPicker({ onSearch, isLoading }) {
     return 'High';
   };
 
+  const handleSearch = () => {
+    if (activeTab === "ai") {
+      if (!prompt.trim()) return;
+      if (INVALID_CHARS_REGEX.test(prompt)) {
+        setError("Please remove special characters like < or >");
+        return;
+      }
+      // Pass energy even with prompt, in case we want to use it
+      onSearch({ prompt: prompt.trim(), energy: getEnergyLabel(energy[0]).toLowerCase() });
+    } else {
+      if (!mood) return;
+      onSearch({ mood, energy: getEnergyLabel(energy[0]).toLowerCase() });
+    }
+  };
+
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 max-w-xl mx-auto">
       
-      {/* AI Prompt Section */}
-      <section className="space-y-4 bg-indigo-950/30 p-4 rounded-2xl border border-indigo-500/20">
-        <div className="flex items-center gap-2 mb-2">
-          <Sparkles className="w-4 h-4 text-indigo-400" />
-          <h2 className="text-sm font-semibold text-indigo-200 uppercase tracking-wide">AI Mood Matcher</h2>
-        </div>
-        <Textarea 
-          placeholder="e.g. I had a long day at work and just want to laugh at something stupid..."
-          value={prompt}
-          onChange={(e) => {
-            const val = e.target.value;
-            if (val.length <= MAX_PROMPT_LENGTH) {
-              setPrompt(val);
-              setError("");
-            } else {
-              setError(`Max ${MAX_PROMPT_LENGTH} characters allowed`);
-            }
-          }}
-          className="bg-slate-900/50 border-slate-700 focus:border-indigo-500 text-slate-200 resize-none h-24"
-        />
-        <div className="flex justify-between text-xs">
-          <span className="text-red-400">{error}</span>
-          <span className={`${prompt.length > MAX_PROMPT_LENGTH * 0.9 ? 'text-orange-400' : 'text-slate-500'}`}>
-            {prompt.length}/{MAX_PROMPT_LENGTH}
-          </span>
-        </div>
-      </section>
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-2 mb-8 bg-slate-900/50 border border-slate-800 p-1 rounded-xl h-14">
+          <TabsTrigger 
+            value="ai"
+            className="rounded-lg text-sm font-medium data-[state=active]:bg-gradient-to-r data-[state=active]:from-violet-600 data-[state=active]:to-fuchsia-600 data-[state=active]:text-white h-full transition-all"
+          >
+            <Wand2 className="w-4 h-4 mr-2" />
+            AI Vibe Match
+          </TabsTrigger>
+          <TabsTrigger 
+            value="manual"
+            className="rounded-lg text-sm font-medium data-[state=active]:bg-slate-800 data-[state=active]:text-white h-full transition-all"
+          >
+            <LayoutGrid className="w-4 h-4 mr-2" />
+            Pick Manually
+          </TabsTrigger>
+        </TabsList>
 
-      <div className="relative">
-        <div className="absolute inset-0 flex items-center">
-          <span className="w-full border-t border-slate-800" />
-        </div>
-        <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-slate-950 px-2 text-slate-500">Or pick manually</span>
-        </div>
-      </div>
-      
-      {/* Mood Section */}
-      <section className={`space-y-4 transition-opacity duration-300 ${prompt ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-white">How are you feeling?</h2>
-          {mood && <span className="text-sm text-slate-400 animate-in fade-in">Nice choice.</span>}
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {MOODS.map((m) => {
-            const Icon = m.icon;
-            const isSelected = mood === m.id;
-            return (
-              <motion.button
-                key={m.id}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setMood(m.id)}
-                className={`
-                  relative flex flex-col items-center justify-center p-4 rounded-2xl border transition-all duration-300
-                  ${isSelected 
-                    ? `${m.color} ring-2 ring-offset-2 ring-offset-slate-950 ring-${m.color.split(' ')[1].replace('text-', '')}` 
-                    : 'bg-slate-900/50 border-slate-800 text-slate-400 hover:bg-slate-800 hover:border-slate-700'}
-                `}
-              >
-                <Icon className={`w-8 h-8 mb-2 ${isSelected ? 'animate-bounce' : ''}`} />
-                <span className="font-medium text-sm">{m.label}</span>
-              </motion.button>
-            );
-          })}
-        </div>
-      </section>
+        <div className="min-h-[200px]">
+          <TabsContent value="ai" className="space-y-4 mt-0">
+            <div className="bg-[#12121A] border border-slate-800 rounded-2xl p-6 shadow-xl">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-violet-500/10 rounded-lg">
+                  <Sparkles className="w-5 h-5 text-violet-400" />
+                </div>
+                <div>
+                  <h2 className="text-white font-semibold">Describe your vibe</h2>
+                  <p className="text-xs text-slate-500">AI will find the perfect mood match</p>
+                </div>
+              </div>
+              
+              <div className="relative">
+                <Textarea 
+                  placeholder="e.g. I had a long day at work and just want to laugh at something stupid..."
+                  value={prompt}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val.length <= MAX_PROMPT_LENGTH) {
+                      setPrompt(val);
+                      setError("");
+                    } else {
+                      setError(`Max ${MAX_PROMPT_LENGTH} characters allowed`);
+                    }
+                  }}
+                  className="bg-slate-900/50 border-slate-700 focus:border-violet-500 text-slate-200 resize-none h-32 rounded-xl text-base p-4 leading-relaxed"
+                />
+                <div className="absolute bottom-3 right-3 text-[10px] text-slate-600 font-mono">
+                  {prompt.length}/{MAX_PROMPT_LENGTH}
+                </div>
+              </div>
+              {error && <p className="text-red-400 text-xs mt-2">{error}</p>}
+            </div>
+          </TabsContent>
 
-      {/* Energy Section */}
+          <TabsContent value="manual" className="space-y-4 mt-0">
+            <div className="bg-[#12121A] border border-slate-800 rounded-2xl p-6 shadow-xl">
+               <div className="flex items-center justify-between mb-4">
+                <h2 className="text-white font-semibold">Select a Mood</h2>
+                {mood && <span className="text-xs text-violet-400 font-medium px-2 py-1 bg-violet-500/10 rounded-full">Selected</span>}
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {MOODS.map((m) => {
+                  const Icon = m.icon;
+                  const isSelected = mood === m.id;
+                  return (
+                    <motion.button
+                      key={m.id}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => setMood(m.id)}
+                      className={`
+                        relative flex flex-col items-center justify-center p-4 rounded-xl border transition-all duration-300
+                        ${isSelected 
+                          ? `${m.color} bg-opacity-20 ring-1 ring-offset-0 ring-${m.color.split(' ')[1].replace('text-', '')}` 
+                          : 'bg-slate-900/40 border-slate-800 text-slate-500 hover:bg-slate-800 hover:border-slate-700 hover:text-slate-300'}
+                      `}
+                    >
+                      <Icon className={`w-6 h-6 mb-2 ${isSelected ? 'animate-bounce' : ''}`} />
+                      <span className="font-medium text-xs">{m.label}</span>
+                    </motion.button>
+                  );
+                })}
+              </div>
+            </div>
+          </TabsContent>
+        </div>
+      </Tabs>
+
+      {/* Energy Section - Shared */}
       <section className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between px-1">
           <h2 className="text-lg font-semibold text-white">Energy Level</h2>
-          <span className="text-indigo-400 font-medium px-3 py-1 bg-indigo-500/10 rounded-full text-sm">
+          <span className="text-xs font-bold tracking-wider text-violet-300 px-3 py-1 bg-violet-500/10 rounded-full border border-violet-500/20 uppercase">
             {getEnergyLabel(energy[0])}
           </span>
         </div>
-        <div className="bg-slate-900/50 p-6 rounded-2xl border border-slate-800">
+        <div className="bg-[#12121A] p-8 rounded-2xl border border-slate-800 shadow-lg">
           <Slider
             value={energy}
             onValueChange={setEnergy}
             max={100}
             step={1}
-            className="w-full"
+            className="w-full cursor-pointer"
           />
-          <div className="flex justify-between mt-2 text-xs text-slate-500 font-medium uppercase tracking-wider">
+          <div className="flex justify-between mt-4 text-[10px] text-slate-500 font-bold uppercase tracking-widest">
             <span>Chill</span>
             <span>Balanced</span>
             <span>Hype</span>
@@ -133,24 +170,22 @@ export default function MoodPicker({ onSearch, isLoading }) {
       <div className="pt-4 sticky bottom-4 z-20">
         <Button 
           size="lg" 
-          className="w-full h-14 text-lg font-bold bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 shadow-lg shadow-indigo-500/25 rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98]"
-          disabled={(!mood && !prompt) || isLoading}
-          onClick={() => {
-            if (prompt && INVALID_CHARS_REGEX.test(prompt)) {
-              setError("Please remove special characters like < or >");
-              return;
-            }
-            if (error) return;
-            onSearch(prompt ? { prompt: prompt.trim() } : { mood, energy: getEnergyLabel(energy[0]).toLowerCase() });
-          }}
-          >
+          className="w-full h-16 text-lg font-bold bg-[#1A1A24] hover:bg-[#252532] border border-slate-700 hover:border-violet-500/50 text-white shadow-xl shadow-black/50 rounded-2xl transition-all group overflow-hidden relative"
+          disabled={(activeTab === 'ai' && !prompt) || (activeTab === 'manual' && !mood) || isLoading}
+          onClick={handleSearch}
+        >
+          <div className="absolute inset-0 bg-gradient-to-r from-violet-600/20 to-fuchsia-600/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          
           {isLoading ? (
-            <span className="flex items-center gap-2">
-              <span className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-              {prompt ? "Analyzing Vibe..." : "Finding matches..."}
+            <span className="flex items-center gap-3 relative z-10">
+              <span className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+              <span className="animate-pulse">Analyzing Vibe...</span>
             </span>
           ) : (
-            "Get my Mood Movies 🎬"
+            <span className="flex items-center gap-2 relative z-10">
+              <Sparkles className="w-5 h-5 text-violet-400" />
+              Find my movies
+            </span>
           )}
         </Button>
       </div>
