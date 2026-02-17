@@ -9,34 +9,38 @@ export default function Layout({ children }) {
   const isHistory = location.pathname.includes('History');
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-indigo-500/30">
-      {/* Background Ambience */}
+    <div className="min-h-screen bg-[#05050A] text-slate-100 font-sans selection:bg-purple-500/30 overflow-x-hidden">
+      {/* Deep Cosmic Background */}
       <div className="fixed inset-0 z-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-500/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-500/10 rounded-full blur-3xl animate-pulse delay-1000" />
+        <div className="absolute top-[-20%] left-[-10%] w-[70%] h-[70%] bg-purple-900/10 rounded-full blur-[120px]" />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-indigo-900/10 rounded-full blur-[100px]" />
+        <div className="absolute top-[20%] right-[20%] w-[20%] h-[20%] bg-fuchsia-900/5 rounded-full blur-[80px]" />
       </div>
 
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-slate-950/80 backdrop-blur-md border-b border-slate-800/50">
-        <div className="max-w-md mx-auto px-4 h-16 flex items-center justify-between">
-          <Link to={createPageUrl('Home')} className="flex items-center gap-2 group">
-            <div className="bg-gradient-to-tr from-indigo-500 to-purple-500 p-2 rounded-xl group-hover:scale-105 transition-transform">
+      {/* Floating Header */}
+      <nav className="fixed top-6 left-0 right-0 z-50 pointer-events-none">
+        <div className="max-w-5xl mx-auto px-6 flex items-start justify-between">
+          {/* Logo - Pointer events auto to allow clicking */}
+          <Link to={createPageUrl('Home')} className="pointer-events-auto flex items-center gap-3 group">
+            <div className="bg-gradient-to-tr from-fuchsia-600 to-purple-600 p-2.5 rounded-xl shadow-lg shadow-purple-500/20 group-hover:scale-105 transition-transform duration-300">
               <Film className="w-5 h-5 text-white" />
             </div>
-            <span className="font-bold text-lg bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">
+            <span className="font-bold text-lg tracking-tight text-white/90 group-hover:text-white transition-colors">
               MoodMovie
             </span>
           </Link>
 
-          <div className="flex items-center gap-1">
+          {/* Navigation Pill */}
+          <div className="pointer-events-auto bg-[#1A1A24]/80 backdrop-blur-xl border border-white/5 rounded-full p-1.5 flex items-center gap-1 shadow-2xl shadow-black/50">
             <Link 
               to={createPageUrl('Home')} 
-              className={`p-2 rounded-full transition-colors ${isHome ? 'bg-slate-800 text-indigo-400' : 'text-slate-400 hover:text-white'}`}
+              className={`p-2.5 rounded-full transition-all duration-300 ${isHome ? 'bg-white/10 text-white shadow-inner' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'}`}
             >
               <Home className="w-5 h-5" />
             </Link>
             <Link 
               to={createPageUrl('History')} 
-              className={`p-2 rounded-full transition-colors ${isHistory ? 'bg-slate-800 text-indigo-400' : 'text-slate-400 hover:text-white'}`}
+              className={`p-2.5 rounded-full transition-all duration-300 ${isHistory ? 'bg-white/10 text-white shadow-inner' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'}`}
             >
               <History className="w-5 h-5" />
             </Link>
@@ -44,12 +48,12 @@ export default function Layout({ children }) {
         </div>
       </nav>
 
-      <main className="relative z-10 pt-20 pb-20 px-4 max-w-md mx-auto min-h-screen flex flex-col">
+      <main className="relative z-10 pt-32 pb-20 px-6 max-w-2xl mx-auto min-h-screen flex flex-col">
         {children}
       </main>
 
-      <footer className="fixed bottom-0 left-0 right-0 py-4 text-center text-xs text-slate-600 bg-slate-950/80 backdrop-blur-sm pointer-events-none z-0">
-        <p>MoodMovie 2025 • Find your vibe</p>
+      <footer className="fixed bottom-6 left-0 right-0 text-center pointer-events-none z-0">
+        <p className="text-[10px] font-medium tracking-[0.2em] text-slate-700 uppercase">MoodMovie 2026</p>
       </footer>
     </div>
   );
