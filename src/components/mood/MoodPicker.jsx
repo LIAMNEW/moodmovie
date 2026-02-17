@@ -108,13 +108,13 @@ export default function MoodPicker({ onSearch, isLoading }) {
             </div>
           </TabsContent>
 
-          <TabsContent value="manual" className="space-y-4 mt-0">
-            <div className="bg-[#12121A] border border-slate-800 rounded-2xl p-6 shadow-xl">
-               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-white font-semibold">Select a Mood</h2>
-                {mood && <span className="text-xs text-violet-400 font-medium px-2 py-1 bg-violet-500/10 rounded-full">Selected</span>}
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <TabsContent value="manual" className="space-y-6 mt-0">
+            <div className="flex items-center justify-between px-1">
+              <h2 className="text-lg font-semibold text-white">How are you feeling?</h2>
+              {mood && <span className="text-xs font-medium text-violet-300 px-2 py-1 bg-violet-500/10 rounded-full border border-violet-500/20">Selected</span>}
+            </div>
+            
+            <div className="grid grid-cols-2 gap-3">
                 {MOODS.map((m) => {
                   const Icon = m.icon;
                   const isSelected = mood === m.id;
@@ -122,21 +122,20 @@ export default function MoodPicker({ onSearch, isLoading }) {
                     <motion.button
                       key={m.id}
                       whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.95 }}
+                      whileTap={{ scale: 0.98 }}
                       onClick={() => setMood(m.id)}
                       className={`
-                        relative flex flex-col items-center justify-center p-4 rounded-xl border transition-all duration-300
+                        relative flex items-center gap-3 p-4 rounded-xl border transition-all duration-300 text-left h-16 group
                         ${isSelected 
-                          ? `${m.color} bg-opacity-20 ring-1 ring-offset-0 ring-${m.color.split(' ')[1].replace('text-', '')}` 
-                          : 'bg-slate-900/40 border-slate-800 text-slate-500 hover:bg-slate-800 hover:border-slate-700 hover:text-slate-300'}
+                          ? 'bg-[#1A1A24] border-violet-500 shadow-[0_0_15px_rgba(139,92,246,0.15)] ring-1 ring-violet-500 z-10' 
+                          : 'bg-[#12121A] border-slate-800/60 hover:bg-[#1A1A24] hover:border-slate-700'}
                       `}
                     >
-                      <Icon className={`w-6 h-6 mb-2 ${isSelected ? 'animate-bounce' : ''}`} />
-                      <span className="font-medium text-xs">{m.label}</span>
+                      <Icon className={`w-5 h-5 transition-colors ${isSelected ? 'text-violet-400' : 'text-slate-500 group-hover:text-slate-400'}`} />
+                      <span className={`font-medium text-sm transition-colors ${isSelected ? 'text-white' : 'text-slate-400 group-hover:text-slate-200'}`}>{m.label}</span>
                     </motion.button>
                   );
                 })}
-              </div>
             </div>
           </TabsContent>
         </div>
