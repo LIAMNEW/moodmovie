@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from "@tanstack/react-query";
-import { Trash2, Calendar, Clock, Heart } from 'lucide-react';
+import { Trash2, Calendar, Clock, Heart, UserX, RefreshCw } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from 'date-fns';
@@ -10,12 +10,39 @@ import { format } from 'date-fns';
 export default function HistoryPage() {
   const [history, setHistory] = useState([]);
   const [view, setView] = useState('all');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [touchStart, setTouchStart] = useState(null);
+  const [touchEnd, setTouchEnd] = useState(null);
 
   // Fetch from backend
   const { data: historyData, refetch } = useQuery({
     queryKey: ['history'],
     queryFn: () => base44.entities.History.list('-timestamp', 100)
   });
+
+  const onTouchStart = (e) => {
+    setTouchEnd(null);
+    setTouchStart(e.targetTouches[0].clientY);
+  };
+
+  const onTouchMove = (e) => {
+    setTouchEnd(e.targetTouches[0].clientY);
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+    const distance = touchEnd - touchStart;
+    const isAtTop = window.scrollY === 0;
+    if (isAtTop && distance > 100) {
+      handleRefresh();
+    }
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await refetch();
+    setTimeout(() => setIsRefreshing(false), 800);
+  };
 
   useEffect(() => {
     // Only show watched movies in the UI
@@ -44,12 +71,37 @@ export default function HistoryPage() {
     }
   };
 
+  const deleteAccount = async () => {
+    if (confirm('Are you sure you want to delete your account? This cannot be undone.')) {
+      try {
+        const user = await base44.auth.me();
+        if (user) {
+          await base44.entities.User.delete(user.id);
+          base44.auth.logout();
+        }
+      } catch (err) {
+        console.error("Failed to delete account:", err);
+        alert("Account deletion failed. You may not have permissions.");
+      }
+    }
+  };
+
   const filteredHistory = view === 'favorites' 
     ? history.filter(h => h.is_favorite) 
     : history;
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
+    <div 
+      className="space-y-6 animate-in fade-in duration-500 min-h-screen pb-10"
+      onTouchStart={onTouchStart}
+      onTouchMove={onTouchMove}
+      onTouchEnd={onTouchEnd}
+    >
+      {isRefreshing && (
+        <div className="flex justify-center py-2 animate-in fade-in zoom-in duration-200">
+          <RefreshCw className="w-6 h-6 text-indigo-400 animate-spin" />
+        </div>
+      )}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold text-white">Your Watch History</h1>
 
@@ -61,17 +113,28 @@ export default function HistoryPage() {
             </TabsList>
           </Tabs>
 
-          {history.length > 0 && (
+          <div className="flex gap-2">
+            {history.length > 0 && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={clearHistory}
+                className="text-slate-500 hover:text-red-400 hover:bg-red-950/30"
+                title="Clear History"
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            )}
             <Button 
               variant="ghost" 
               size="icon" 
-              onClick={clearHistory}
+              onClick={deleteAccount}
               className="text-slate-500 hover:text-red-400 hover:bg-red-950/30"
-              title="Clear History"
+              title="Delete Account"
             >
-              <Trash2 className="w-4 h-4" />
+              <UserX className="w-4 h-4" />
             </Button>
-          )}
+          </div>
         </div>
       </div>
 

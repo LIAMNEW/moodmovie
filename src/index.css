@@ -154,5 +154,10 @@ button:focus-visible {
   }
   body {
     @apply bg-background text-foreground;
+    overscroll-behavior-y: none;
+  }
+  button, a {
+    user-select: none;
+    -webkit-user-select: none;
   }
 }

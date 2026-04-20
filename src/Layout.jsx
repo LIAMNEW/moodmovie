@@ -1,10 +1,11 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Film, History, Home, Sparkles } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Film, History, Home, Sparkles, ChevronLeft } from 'lucide-react';
 import { createPageUrl } from './utils';
 
 export default function Layout({ children }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const isHome = location.pathname === '/' || location.pathname === '';
   const isHistory = location.pathname.includes('History');
 
@@ -18,43 +19,52 @@ export default function Layout({ children }) {
       </div>
 
       {/* Floating Header */}
-      <nav className="fixed top-6 left-0 right-0 z-50 pointer-events-none">
-        <div className="max-w-5xl mx-auto px-6 flex items-start justify-between">
-          {/* Logo - Pointer events auto to allow clicking */}
-          <Link to={createPageUrl('Home')} className="pointer-events-auto flex items-center gap-3 group">
-            <div className="bg-gradient-to-tr from-fuchsia-600 to-purple-600 p-2.5 rounded-xl shadow-lg shadow-purple-500/20 group-hover:scale-105 transition-transform duration-300">
-              <Film className="w-5 h-5 text-white" />
-            </div>
-            <span className="font-bold text-lg tracking-tight text-white/90 group-hover:text-white transition-colors">
-              MoodMovie
-            </span>
-          </Link>
-
-          {/* Navigation Pill */}
-          <div className="pointer-events-auto bg-[#1A1A24]/80 backdrop-blur-xl border border-white/5 rounded-full p-1.5 flex items-center gap-1 shadow-2xl shadow-black/50">
-            <Link 
-              to={createPageUrl('Home')} 
-              className={`p-2.5 rounded-full transition-all duration-300 ${isHome ? 'bg-white/10 text-white shadow-inner' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'}`}
-            >
-              <Home className="w-5 h-5" />
-            </Link>
-            <Link 
-              to={createPageUrl('History')} 
-              className={`p-2.5 rounded-full transition-all duration-300 ${isHistory ? 'bg-white/10 text-white shadow-inner' : 'text-slate-500 hover:text-slate-300 hover:bg-white/5'}`}
-            >
-              <History className="w-5 h-5" />
+      <nav className="fixed top-0 pt-[env(safe-area-inset-top,1.5rem)] pb-4 left-0 right-0 z-50 pointer-events-none bg-gradient-to-b from-[#05050A] to-transparent">
+        <div className="max-w-5xl mx-auto px-6 flex items-center justify-between mt-4">
+          <div className="flex items-center gap-3">
+            {!isHome && (
+              <button 
+                onClick={() => navigate(-1)}
+                className="pointer-events-auto p-2 bg-white/5 hover:bg-white/10 rounded-full transition-colors backdrop-blur-md border border-white/5"
+              >
+                <ChevronLeft className="w-5 h-5 text-white/90" />
+              </button>
+            )}
+            <Link to={createPageUrl('Home')} className="pointer-events-auto flex items-center gap-3 group">
+              <div className="bg-gradient-to-tr from-fuchsia-600 to-purple-600 p-2.5 rounded-xl shadow-lg shadow-purple-500/20 group-hover:scale-105 transition-transform duration-300">
+                <Film className="w-5 h-5 text-white" />
+              </div>
+              <span className="font-bold text-lg tracking-tight text-white/90 group-hover:text-white transition-colors">
+                MoodMovie
+              </span>
             </Link>
           </div>
         </div>
       </nav>
 
-      <main className="relative z-10 pt-32 pb-20 px-6 max-w-2xl mx-auto min-h-screen flex flex-col">
+      <main className="relative z-10 pt-[calc(env(safe-area-inset-top,0px)+8rem)] pb-[calc(env(safe-area-inset-bottom,0px)+6rem)] px-6 max-w-2xl mx-auto min-h-screen flex flex-col">
         {children}
       </main>
 
-      <footer className="fixed bottom-6 left-0 right-0 text-center pointer-events-none z-0">
-        <p className="text-[10px] font-medium tracking-[0.2em] text-slate-700 uppercase">MoodMovie 2026</p>
-      </footer>
+      {/* Bottom Navigation */}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 pb-[env(safe-area-inset-bottom,0px)] bg-[#05050A]/90 backdrop-blur-xl border-t border-white/5 pointer-events-auto">
+        <div className="max-w-md mx-auto px-6 py-3 flex items-center justify-around">
+          <Link 
+            to={createPageUrl('Home')} 
+            className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all duration-300 min-w-[64px] ${isHome ? 'text-white' : 'text-slate-500 hover:text-slate-300'}`}
+          >
+            <Home className="w-6 h-6" />
+            <span className="text-[10px] font-medium">Home</span>
+          </Link>
+          <Link 
+            to={createPageUrl('History')} 
+            className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all duration-300 min-w-[64px] ${isHistory ? 'text-white' : 'text-slate-500 hover:text-slate-300'}`}
+          >
+            <History className="w-6 h-6" />
+            <span className="text-[10px] font-medium">History</span>
+          </Link>
+        </div>
+      </nav>
     </div>
   );
 }
