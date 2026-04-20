@@ -6,43 +6,27 @@ import { Trash2, Calendar, Clock, Heart, UserX, RefreshCw } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from 'date-fns';
+import PullToRefresh from '@/components/ui/PullToRefresh';
 
 export default function HistoryPage() {
   const [history, setHistory] = useState([]);
   const [view, setView] = useState('all');
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [touchStart, setTouchStart] = useState(null);
-  const [touchEnd, setTouchEnd] = useState(null);
+
+  useEffect(() => {
+    const handleReset = (e) => {
+      if (e.detail === '/History') {
+        setView('all');
+      }
+    };
+    window.addEventListener('reset-tab', handleReset);
+    return () => window.removeEventListener('reset-tab', handleReset);
+  }, []);
 
   // Fetch from backend
   const { data: historyData, refetch } = useQuery({
     queryKey: ['history'],
     queryFn: () => base44.entities.History.list('-timestamp', 100)
   });
-
-  const onTouchStart = (e) => {
-    setTouchEnd(null);
-    setTouchStart(e.targetTouches[0].clientY);
-  };
-
-  const onTouchMove = (e) => {
-    setTouchEnd(e.targetTouches[0].clientY);
-  };
-
-  const onTouchEnd = () => {
-    if (!touchStart || !touchEnd) return;
-    const distance = touchEnd - touchStart;
-    const isAtTop = window.scrollY === 0;
-    if (isAtTop && distance > 100) {
-      handleRefresh();
-    }
-  };
-
-  const handleRefresh = async () => {
-    setIsRefreshing(true);
-    await refetch();
-    setTimeout(() => setIsRefreshing(false), 800);
-  };
 
   useEffect(() => {
     // Only show watched movies in the UI
@@ -91,18 +75,9 @@ export default function HistoryPage() {
     : history;
 
   return (
-    <div 
-      className="space-y-6 animate-in fade-in duration-500 min-h-screen pb-10"
-      onTouchStart={onTouchStart}
-      onTouchMove={onTouchMove}
-      onTouchEnd={onTouchEnd}
-    >
-      {isRefreshing && (
-        <div className="flex justify-center py-2 animate-in fade-in zoom-in duration-200">
-          <RefreshCw className="w-6 h-6 text-indigo-400 animate-spin" />
-        </div>
-      )}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <PullToRefresh onRefresh={refetch}>
+      <div className="space-y-6 animate-in fade-in duration-500 min-h-screen pb-10">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-bold text-white">Your Watch History</h1>
 
         <div className="flex items-center gap-4">
@@ -192,6 +167,6 @@ export default function HistoryPage() {
           )}
         </AnimatePresence>
       </div>
-    </div>
+    </PullToRefresh>
   );
 }

@@ -12,7 +12,7 @@ export default function ShareCard({ movie, mood, energy, onClose }) {
         className="bg-slate-900 rounded-3xl overflow-hidden max-w-sm w-full shadow-2xl border border-slate-800"
       >
         <div className="p-1 flex justify-end">
-          <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full hover:bg-white/10 text-white">
+          <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full hover:bg-white/10 text-white min-h-[44px] min-w-[44px]">
             <X className="w-5 h-5" />
           </Button>
         </div>
@@ -43,11 +43,11 @@ export default function ShareCard({ movie, mood, energy, onClose }) {
           </div>
 
           <div className="flex gap-3">
-            <Button className="flex-1 bg-white text-black hover:bg-slate-200" onClick={() => alert('Saved to clipboard!')}>
+            <Button className="flex-1 bg-white text-black hover:bg-slate-200 min-h-[44px]" onClick={() => alert('Saved to clipboard!')}>
               <Share className="w-4 h-4 mr-2" />
               Share
             </Button>
-            <Button variant="outline" className="flex-1 border-slate-700 text-white hover:bg-slate-800" onClick={onClose}>
+            <Button variant="outline" className="flex-1 border-slate-700 text-white hover:bg-slate-800 min-h-[44px]" onClick={onClose}>
               Done
             </Button>
           </div>

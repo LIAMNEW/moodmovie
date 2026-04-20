@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import MoodPicker from '../components/mood/MoodPicker';
 import MovieCard from '../components/movies/MovieCard';
 import ShareCard from '../components/movies/ShareCard';
+import PullToRefresh from '@/components/ui/PullToRefresh';
 
 export default function Home() {
   const [step, setStep] = useState('landing'); // landing, input, results
@@ -14,6 +15,16 @@ export default function Home() {
   const [userCriteria, setUserCriteria] = useState(null);
   const [shareMovie, setShareMovie] = useState(null);
   const [userHistory, setUserHistory] = useState([]);
+
+  useEffect(() => {
+    const handleReset = (e) => {
+      if (e.detail === '/') {
+        resetApp();
+      }
+    };
+    window.addEventListener('reset-tab', handleReset);
+    return () => window.removeEventListener('reset-tab', handleReset);
+  }, []);
   
   // Security: Rate Limiting State
   const lastSearchTime = React.useRef(0);
@@ -350,7 +361,7 @@ Also extract any specific nuances, sub-genres, or stylistic preferences mentione
                  variant="ghost" 
                  size="sm" 
                  onClick={() => setStep('landing')} 
-                 className="text-slate-400 hover:text-white hover:bg-white/5 transition-all -ml-2 rounded-full px-4"
+                 className="text-slate-400 hover:text-white hover:bg-white/5 transition-all -ml-2 rounded-full px-4 min-h-[44px]"
                >
                  ← Back to Home
                </Button>
@@ -368,34 +379,36 @@ Also extract any specific nuances, sub-genres, or stylistic preferences mentione
             exit={{ opacity: 0 }}
             className="flex-1 py-6 space-y-6"
           >
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                <span className="text-2xl">💫</span> Tonight's Picks
-              </h2>
-              <Button variant="ghost" size="sm" onClick={() => setStep('input')} className="text-slate-400">
-                Change Mood
-              </Button>
-            </div>
+            <PullToRefresh onRefresh={() => handleSearch(userCriteria)}>
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                  <span className="text-2xl">💫</span> Tonight's Picks
+                </h2>
+                <Button variant="ghost" size="sm" onClick={() => setStep('input')} className="text-slate-400 min-h-[44px]">
+                  Change Mood
+                </Button>
+              </div>
 
-            <div className="space-y-6">
-              <AnimatePresence>
-                {recommendations.map((movie) => (
-                  <MovieCard 
-                    key={movie.id} 
-                    movie={movie} 
-                    onWatch={handleWatch}
-                    onReject={handleReject}
-                  />
-                ))}
-              </AnimatePresence>
-              
-              {recommendations.length === 0 && (
-                <div className="text-center py-10 text-slate-500">
-                  <p>Running low on recommendations...</p>
-                  <Button variant="link" onClick={() => setStep('input')}>Try different settings</Button>
-                </div>
-              )}
-            </div>
+              <div className="space-y-6">
+                <AnimatePresence>
+                  {recommendations.map((movie) => (
+                    <MovieCard 
+                      key={movie.id} 
+                      movie={movie} 
+                      onWatch={handleWatch}
+                      onReject={handleReject}
+                    />
+                  ))}
+                </AnimatePresence>
+                
+                {recommendations.length === 0 && (
+                  <div className="text-center py-10 text-slate-500">
+                    <p>Running low on recommendations...</p>
+                    <Button variant="link" onClick={() => setStep('input')} className="min-h-[44px]">Try different settings</Button>
+                  </div>
+                )}
+              </div>
+            </PullToRefresh>
           </motion.div>
         )}
       </AnimatePresence>

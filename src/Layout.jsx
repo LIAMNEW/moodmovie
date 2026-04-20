@@ -3,11 +3,22 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Film, History, Home, Sparkles, ChevronLeft } from 'lucide-react';
 import { createPageUrl } from './utils';
 
+import HomePage from './pages/Home';
+import HistoryPage from './pages/History';
+
 export default function Layout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const isHome = location.pathname === '/' || location.pathname === '';
   const isHistory = location.pathname.includes('History');
+
+  const handleTabClick = (e, path) => {
+    if (location.pathname === path || (path === '/' && isHome)) {
+      e.preventDefault();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      window.dispatchEvent(new CustomEvent('reset-tab', { detail: path }));
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#05050A] text-slate-100 font-sans selection:bg-purple-500/30 overflow-x-hidden">
@@ -43,7 +54,15 @@ export default function Layout({ children }) {
       </nav>
 
       <main className="relative z-10 pt-[calc(env(safe-area-inset-top,0px)+8rem)] pb-[calc(env(safe-area-inset-bottom,0px)+6rem)] px-6 max-w-2xl mx-auto min-h-screen flex flex-col">
-        {children}
+        <div style={{ display: isHome ? 'block' : 'none' }}>
+          <HomePage />
+        </div>
+        <div style={{ display: isHistory ? 'block' : 'none' }}>
+          <HistoryPage />
+        </div>
+        <div style={{ display: (!isHome && !isHistory) ? 'block' : 'none' }}>
+          {children}
+        </div>
       </main>
 
       {/* Bottom Navigation */}
@@ -51,14 +70,16 @@ export default function Layout({ children }) {
         <div className="max-w-md mx-auto px-6 py-3 flex items-center justify-around">
           <Link 
             to={createPageUrl('Home')} 
-            className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all duration-300 min-w-[64px] ${isHome ? 'text-white' : 'text-slate-500 hover:text-slate-300'}`}
+            onClick={(e) => handleTabClick(e, '/')}
+            className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all duration-300 min-w-[64px] min-h-[44px] ${isHome ? 'text-white' : 'text-slate-500 hover:text-slate-300'}`}
           >
             <Home className="w-6 h-6" />
             <span className="text-[10px] font-medium">Home</span>
           </Link>
           <Link 
             to={createPageUrl('History')} 
-            className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all duration-300 min-w-[64px] ${isHistory ? 'text-white' : 'text-slate-500 hover:text-slate-300'}`}
+            onClick={(e) => handleTabClick(e, '/History')}
+            className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all duration-300 min-w-[64px] min-h-[44px] ${isHistory ? 'text-white' : 'text-slate-500 hover:text-slate-300'}`}
           >
             <History className="w-6 h-6" />
             <span className="text-[10px] font-medium">History</span>
