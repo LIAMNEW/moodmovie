@@ -167,6 +167,7 @@ export default function HistoryPage() {
           )}
         </AnimatePresence>
       </div>
+      </div>
     </PullToRefresh>
   );
 }
