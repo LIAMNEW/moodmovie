@@ -9,6 +9,7 @@ import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-route
 import { AnimatePresence, motion } from 'framer-motion';
 import PageNotFound from './lib/PageNotFound';
 import PreferencesPage from './pages/Preferences';
+import ProfilePage from './pages/Profile';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 
@@ -55,6 +56,11 @@ const AuthenticatedApp = () => {
           <Route path="/Preferences" element={
             <motion.div initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }} transition={{ duration: 0.2 }}>
               <PreferencesPage />
+            </motion.div>
+          } />
+          <Route path="/Profile" element={
+            <motion.div initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }} transition={{ duration: 0.2 }}>
+              <ProfilePage />
             </motion.div>
           } />
           {Object.entries(Pages).map(([path, Page]) => {
