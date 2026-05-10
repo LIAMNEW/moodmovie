@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 
 export default function MovieCard({ movie, onWatch, onReject }) {
   const [isHovered, setIsHovered] = useState(false);
+  const [imgError, setImgError] = useState(false);
 
   return (
     <motion.div
@@ -19,11 +20,12 @@ export default function MovieCard({ movie, onWatch, onReject }) {
     >
       {/* Poster Area - Matches Screenshot */}
       <div className="relative h-64 bg-slate-700/50 flex items-center justify-center overflow-hidden group">
-        {movie.poster_url ? (
+        {movie.poster_url && !imgError ? (
           <img 
             src={movie.poster_url} 
             alt={movie.title} 
             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
+            onError={() => setImgError(true)}
           />
         ) : (
           <div className="text-9xl font-black text-white/10 select-none">

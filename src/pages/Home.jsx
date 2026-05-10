@@ -52,6 +52,7 @@ export default function Home() {
                    Prioritize: TMDB (image.tmdb.org), Amazon, or Wikipedia.
                    If you can't find a high-res one, find a decent one.`,
           add_context_from_internet: true,
+          model: "gemini_3_1_pro",
           response_json_schema: {
             type: "object",
             properties: {
@@ -169,6 +170,7 @@ Also extract any specific nuances, sub-genres, or stylistic preferences mentione
                    Return detailed metadata including director, top cast, IMDb rating, and real current US streaming providers with their direct watch URLs.
                    For 'poster_url', leave it empty string, we will fetch it later.`,
           add_context_from_internet: true,
+          model: "gemini_3_1_pro",
           response_json_schema: {
             type: "object",
             properties: {
