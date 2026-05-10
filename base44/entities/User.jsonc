@@ -1,0 +1,21 @@
+{
+  "name": "User",
+  "type": "object",
+  "properties": {
+    "favorite_genres": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "favorite_directors": {
+      "type": "string"
+    },
+    "favorite_actors": {
+      "type": "string"
+    },
+    "excluded_content": {
+      "type": "string"
+    }
+  }
+}

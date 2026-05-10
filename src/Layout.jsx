@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Film, History, Home, Sparkles, ChevronLeft } from 'lucide-react';
+import { Film, History, Home, Sparkles, ChevronLeft, Settings } from 'lucide-react';
 import { createPageUrl } from './utils';
 
 import HomePage from './pages/Home';
@@ -48,6 +48,11 @@ export default function Layout({ children }) {
               <span className="font-bold text-lg tracking-tight text-white/90 group-hover:text-white transition-colors">
                 MoodMovie
               </span>
+            </Link>
+          </div>
+          <div className="flex items-center gap-3 pointer-events-auto">
+            <Link to={createPageUrl('Preferences')} className="p-2 bg-white/5 hover:bg-white/10 rounded-full transition-colors backdrop-blur-md border border-white/5">
+              <Settings className="w-5 h-5 text-white/90" />
             </Link>
           </div>
         </div>

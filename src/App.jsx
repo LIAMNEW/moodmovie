@@ -8,6 +8,7 @@ import { pagesConfig } from './pages.config'
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import PageNotFound from './lib/PageNotFound';
+import PreferencesPage from './pages/Preferences';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 
@@ -51,6 +52,11 @@ const AuthenticatedApp = () => {
       <AnimatePresence mode="wait">
         <Routes location={location} key={location.pathname}>
           <Route path="/" element={<></>} />
+          <Route path="/Preferences" element={
+            <motion.div initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }} transition={{ duration: 0.2 }}>
+              <PreferencesPage />
+            </motion.div>
+          } />
           {Object.entries(Pages).map(([path, Page]) => {
             if (path === 'History') return <Route key={path} path={`/${path}`} element={<></>} />;
             return (

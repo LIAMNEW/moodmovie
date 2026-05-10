@@ -127,6 +127,7 @@ Also extract any specific nuances, sub-genres, or stylistic preferences mentione
 
       // 1. Fetch movies
       const allMovies = await base44.entities.Movie.list(null, 100);
+      const user = await base44.auth.me().catch(() => null);
       console.log('Fetched movies:', allMovies.length);
       
       // 2. Filter & Rank
@@ -154,6 +155,14 @@ Also extract any specific nuances, sub-genres, or stylistic preferences mentione
           ? `User recently watched: ${recentWatched}. Suggest diverse options.` 
           : "";
 
+        let prefsPrompt = "";
+        if (user) {
+          if (user.favorite_genres?.length > 0) prefsPrompt += `\nUser's favorite genres: ${user.favorite_genres.join(', ')}.`;
+          if (user.favorite_directors) prefsPrompt += `\nUser's favorite directors: ${user.favorite_directors}.`;
+          if (user.favorite_actors) prefsPrompt += `\nUser's favorite actors: ${user.favorite_actors}.`;
+          if (user.excluded_content) prefsPrompt += `\nSTRICTLY EXCLUDE movies with: ${user.excluded_content}.`;
+        }
+
         const newMoviesRaw = await base44.integrations.Core.InvokeLLM({
           prompt: `Act as a movie database API. Find 5 UNIQUE, REAL movie recommendations for a user feeling "${criteria.mood}" with "${criteria.energy}" energy.
                    
@@ -162,6 +171,7 @@ Also extract any specific nuances, sub-genres, or stylistic preferences mentione
                    2. Mix Genres: Even within "${criteria.mood}", vary the genres (e.g. Animation, Indie, Blockbuster, Foreign).
                    3. The Wildcard: The 5th movie MUST be a "Wildcard" - a movie that fits a slightly different mood/energy but would still appeal to the user (e.g. if 'happy', try 'motivated' or 'silly').
                    
+                   ${prefsPrompt}
                    ${promptNuance}
                    ${diversityPrompt}
                    Exclude these existing movies: ${allMovies.map(m => m.title).join(", ")}.
