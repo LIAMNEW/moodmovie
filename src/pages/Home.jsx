@@ -166,7 +166,7 @@ Also extract any specific nuances, sub-genres, or stylistic preferences mentione
                    Exclude these existing movies: ${allMovies.map(m => m.title).join(", ")}.
                    Also exclude: ${Array.from(seenTitles).join(", ")}.
                    
-                   Return detailed metadata including director, top cast, IMDb rating, and real current US streaming providers (e.g., Netflix, Hulu, Prime Video, Max, Apple TV+).
+                   Return detailed metadata including director, top cast, IMDb rating, and real current US streaming providers with their direct watch URLs.
                    For 'poster_url', leave it empty string, we will fetch it later.`,
           add_context_from_internet: true,
           response_json_schema: {
@@ -188,7 +188,7 @@ Also extract any specific nuances, sub-genres, or stylistic preferences mentione
                     director: { type: "string" },
                     cast: { type: "array", items: { type: "string" } },
                     imdb_rating: { type: "number" },
-                    streaming_providers: { type: "array", items: { type: "string" } }
+                    streaming_providers: { type: "array", items: { type: "object", properties: { name: { type: "string" }, url: { type: "string" } } } }
                   },
                   required: ["title", "year", "primary_mood", "energy_level", "streaming_providers"]
                 }

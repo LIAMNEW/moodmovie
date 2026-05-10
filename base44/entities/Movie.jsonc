@@ -1,0 +1,111 @@
+{
+  "name": "Movie",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "title": {
+      "type": "string",
+      "maxLength": 255
+    },
+    "year": {
+      "type": "number",
+      "minimum": 1880,
+      "maximum": 2100
+    },
+    "genres": {
+      "type": "array",
+      "maxItems": 10,
+      "items": {
+        "type": "string",
+        "maxLength": 50
+      }
+    },
+    "duration_minutes": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1000
+    },
+    "primary_mood": {
+      "type": "string",
+      "enum": [
+        "happy",
+        "sad",
+        "anxious",
+        "romantic",
+        "tired",
+        "motivated",
+        "bored",
+        "cozy",
+        "intense",
+        "thrilling",
+        "silly"
+      ]
+    },
+    "energy_level": {
+      "type": "string",
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ]
+    },
+    "tags": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "type": "string",
+        "maxLength": 30
+      }
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 2000
+    },
+    "platform": {
+      "type": "string",
+      "maxLength": 100
+    },
+    "poster_url": {
+      "type": "string",
+      "maxLength": 1000
+    },
+    "tmdb_id": {
+      "type": "number",
+      "description": "ID from The Movie Database"
+    },
+    "imdb_rating": {
+      "type": "number",
+      "description": "Rating from OMDb/IMDb",
+      "minimum": 0,
+      "maximum": 10
+    },
+    "director": {
+      "type": "string",
+      "maxLength": 255
+    },
+    "cast": {
+      "type": "array",
+      "maxItems": 50,
+      "items": {
+        "type": "string",
+        "maxLength": 100
+      }
+    },
+    "streaming_providers": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "type": [
+          "string",
+          "object"
+        ]
+      },
+      "description": "List of available streaming services"
+    }
+  },
+  "required": [
+    "title",
+    "primary_mood",
+    "energy_level"
+  ]
+}

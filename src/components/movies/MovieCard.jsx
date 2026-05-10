@@ -88,11 +88,19 @@ export default function MovieCard({ movie, onWatch, onReject }) {
             <span className="text-xs text-slate-400 font-medium flex items-center gap-1">
               <PlayCircle className="w-3.5 h-3.5" /> Watch on:
             </span>
-            {movie.streaming_providers.slice(0, 3).map(p => (
-              <span key={p} className="text-xs font-semibold text-slate-200 bg-slate-800 px-2 py-1 rounded-md border border-slate-700">
-                {p}
-              </span>
-            ))}
+            {movie.streaming_providers.slice(0, 3).map((p, idx) => {
+              const name = typeof p === 'string' ? p : p.name;
+              const url = typeof p === 'string' ? null : p.url;
+              return url ? (
+                <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-indigo-300 hover:text-indigo-200 bg-indigo-500/10 hover:bg-indigo-500/20 px-2 py-1 rounded-md border border-indigo-500/20 transition-colors">
+                  {name}
+                </a>
+              ) : (
+                <span key={idx} className="text-xs font-semibold text-slate-200 bg-slate-800 px-2 py-1 rounded-md border border-slate-700">
+                  {name}
+                </span>
+              );
+            })}
           </div>
         )}
 
