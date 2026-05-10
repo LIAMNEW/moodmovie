@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Clock, Tag, Tv, Check, RefreshCw, Share2 } from 'lucide-react';
+import { Clock, Tag, Tv, Check, RefreshCw, Share2, PlayCircle } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -81,6 +81,20 @@ export default function MovieCard({ movie, onWatch, onReject }) {
             </Badge>
           ))}
         </div>
+
+        {/* Streaming Providers */}
+        {movie.streaming_providers && movie.streaming_providers.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-slate-700/50">
+            <span className="text-xs text-slate-400 font-medium flex items-center gap-1">
+              <PlayCircle className="w-3.5 h-3.5" /> Watch on:
+            </span>
+            {movie.streaming_providers.slice(0, 3).map(p => (
+              <span key={p} className="text-xs font-semibold text-slate-200 bg-slate-800 px-2 py-1 rounded-md border border-slate-700">
+                {p}
+              </span>
+            ))}
+          </div>
+        )}
 
         {/* Action Buttons */}
         <div className="grid grid-cols-2 gap-4 pt-2">
