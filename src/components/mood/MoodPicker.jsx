@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Smile, Frown, Zap, Coffee, Moon, Heart, Flame, Music, Sun, CloudRain, Sparkles, Wand2, LayoutGrid } from 'lucide-react';
+import { Smile, Frown, Zap, Coffee, Moon, Heart, Flame, Music, Sun, CloudRain, Sparkles, Wand2, LayoutGrid, Mic, MicOff } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
@@ -25,6 +25,42 @@ export default function MoodPicker({ onSearch, isLoading }) {
   const [energy, setEnergy] = useState([50]); // 0-100
   const [prompt, setPrompt] = useState("");
   const [error, setError] = useState("");
+  const [isListening, setIsListening] = useState(false);
+
+  const toggleListening = () => {
+    if (isListening) {
+      if (window.currentRecognition) window.currentRecognition.stop();
+      setIsListening(false);
+      return;
+    }
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      setError("Speech recognition is not supported in your browser.");
+      return;
+    }
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    let initialPrompt = prompt;
+    recognition.onstart = () => setIsListening(true);
+    recognition.onresult = (event) => {
+      const currentTranscript = Array.from(event.results)
+        .map(result => result[0].transcript)
+        .join('');
+      const newPrompt = initialPrompt ? `${initialPrompt} ${currentTranscript}` : currentTranscript;
+      if (newPrompt.length <= MAX_PROMPT_LENGTH) {
+        setPrompt(newPrompt);
+        setError("");
+      } else {
+        setPrompt(newPrompt.substring(0, MAX_PROMPT_LENGTH));
+        setError(`Max ${MAX_PROMPT_LENGTH} characters allowed`);
+      }
+    };
+    recognition.onerror = () => setIsListening(false);
+    recognition.onend = () => setIsListening(false);
+    window.currentRecognition = recognition;
+    recognition.start();
+  };
 
   // OWASP: Input Validation Constants
   const MAX_PROMPT_LENGTH = 500;
@@ -98,8 +134,18 @@ export default function MoodPicker({ onSearch, isLoading }) {
                       setError(`Max ${MAX_PROMPT_LENGTH} characters allowed`);
                     }
                   }}
-                  className="bg-slate-900/50 border-slate-700 focus:border-violet-500 text-slate-200 resize-none h-32 rounded-xl text-base p-4 leading-relaxed"
+                  className="bg-slate-900/50 border-slate-700 focus:border-violet-500 text-slate-200 resize-none h-32 rounded-xl text-base p-4 leading-relaxed pr-12"
                 />
+                <button
+                  type="button"
+                  onClick={toggleListening}
+                  className={`absolute top-3 right-3 p-2 rounded-full transition-colors ${
+                    isListening ? 'bg-red-500/20 text-red-500 hover:bg-red-500/30' : 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'
+                  }`}
+                  title={isListening ? "Stop listening" : "Start typing with voice"}
+                >
+                  {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                </button>
                 <div className="absolute bottom-3 right-3 text-[10px] text-slate-600 font-mono">
                   {prompt.length}/{MAX_PROMPT_LENGTH}
                 </div>
