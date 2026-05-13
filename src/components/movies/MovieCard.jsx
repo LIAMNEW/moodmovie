@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Clock, Tag, Tv, Check, RefreshCw, Share2, PlayCircle, Info, Youtube, User, Users } from 'lucide-react';
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,10 @@ export default function MovieCard({ movie, onWatch, onReject, onPosterError }) {
   const [isHovered, setIsHovered] = useState(false);
   const [imgError, setImgError] = useState(false);
   const [showDeepInfo, setShowDeepInfo] = useState(false);
+
+  useEffect(() => {
+    setImgError(false);
+  }, [movie.poster_url]);
 
   return (
     <motion.div
