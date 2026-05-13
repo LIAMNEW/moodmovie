@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Clock, Tag, Tv, Check, RefreshCw, Share2, PlayCircle } from 'lucide-react';
+import { Clock, Tag, Tv, Check, RefreshCw, Share2, PlayCircle, Info, Youtube, User, Users } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
 export default function MovieCard({ movie, onWatch, onReject }) {
   const [isHovered, setIsHovered] = useState(false);
   const [imgError, setImgError] = useState(false);
+  const [showDeepInfo, setShowDeepInfo] = useState(false);
 
   return (
     <motion.div
@@ -69,6 +70,59 @@ export default function MovieCard({ movie, onWatch, onReject }) {
         <p className="text-slate-200 leading-relaxed text-sm">
           {movie.description}
         </p>
+
+        {/* Deep Info Toggle */}
+        <Button 
+          variant="ghost" 
+          onClick={() => setShowDeepInfo(!showDeepInfo)}
+          className="text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10 p-0 h-auto font-semibold text-xs flex items-center gap-1"
+        >
+          <Info className="w-4 h-4" />
+          {showDeepInfo ? 'Hide Deep Info' : 'Show Deep Info & Trailers'}
+        </Button>
+
+        <AnimatePresence>
+          {showDeepInfo && (
+            <motion.div 
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="overflow-hidden"
+            >
+              <div className="bg-slate-800/50 rounded-xl p-4 space-y-3 mt-2 border border-slate-700/50">
+                {movie.director && (
+                  <div className="flex items-start gap-2">
+                    <User className="w-4 h-4 text-slate-400 mt-0.5" />
+                    <div>
+                      <span className="text-xs font-semibold text-slate-300 block">Director</span>
+                      <span className="text-sm text-slate-200">{movie.director}</span>
+                    </div>
+                  </div>
+                )}
+                {movie.cast && movie.cast.length > 0 && (
+                  <div className="flex items-start gap-2">
+                    <Users className="w-4 h-4 text-slate-400 mt-0.5" />
+                    <div>
+                      <span className="text-xs font-semibold text-slate-300 block">Top Cast</span>
+                      <span className="text-sm text-slate-200">{movie.cast.join(', ')}</span>
+                    </div>
+                  </div>
+                )}
+                <div className="pt-2">
+                  <a 
+                    href={`https://www.youtube.com/results?search_query=${encodeURIComponent(movie.title + ' ' + (movie.year || '') + ' official trailer')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 bg-red-600/10 hover:bg-red-600/20 text-red-400 px-3 py-2 rounded-lg text-sm font-medium border border-red-500/20 transition-colors"
+                  >
+                    <Youtube className="w-4 h-4" />
+                    Watch Trailer on YouTube
+                  </a>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Tags */}
         <div className="flex flex-wrap gap-2">
