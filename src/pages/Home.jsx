@@ -37,15 +37,22 @@ export default function Home() {
     });
   }, []);
 
-  // Search Logic
-  // Helper to fetch reliable TMDB posters for movies that miss them
-  const updateMoviePoster = async (movie) => {
-    const response = await base44.functions.invoke('fetchMoviePoster', {
-      title: movie.title,
-      year: movie.year
-    });
+  // Fetch a TMDB poster for a single movie — returns { poster_url, tmdb_id } or {}
+  const fetchPosterFor = async (movie) => {
+    try {
+      const response = await base44.functions.invoke('fetchMoviePoster', {
+        title: movie.title,
+        year: movie.year
+      });
+      return response?.data || {};
+    } catch {
+      return {};
+    }
+  };
 
-    const { poster_url, tmdb_id } = response.data || {};
+  // Called by MovieCard if a poster URL fails to render — refetches from TMDB
+  const updateMoviePoster = async (movie) => {
+    const { poster_url, tmdb_id } = await fetchPosterFor(movie);
     if (!poster_url) return;
 
     const updateData = { poster_url };
@@ -55,11 +62,6 @@ export default function Home() {
     setRecommendations(prev =>
       prev.map(p => p.id === movie.id ? { ...p, ...updateData } : p)
     );
-  };
-
-  const enrichMoviesWithImages = (movies) => {
-    // Fire each poster fetch independently so cards update as soon as their image is ready
-    movies.filter(m => !m.poster_url).forEach(m => { updateMoviePoster(m); });
   };
 
   // Search Logic
@@ -97,20 +99,78 @@ export default function Home() {
       const excludeTitles = Array.from(new Set([...existingTitles, ...seenTitles])).slice(0, 40);
       const randomSeed = Math.random().toString(36).slice(2, 8);
 
-      // SINGLE LLM call: interpret mood from natural language AND pick 5 movies in one shot
-      const userInputBlock = sanitizedPrompt
-        ? `User said: "${sanitizedPrompt}". Infer the best mood + energy from this.`
-        : `Mood: "${criteria.mood}", energy: "${criteria.energy}".`;
+      // Step 1 — Mood analysis: extract emotional subtext + narrative themes
+      let analysis = {
+        mood: criteria.mood,
+        energy: criteria.energy,
+        themes: [],
+        avoid_themes: []
+      };
+
+      if (sanitizedPrompt) {
+        const moodRes = await base44.integrations.Core.InvokeLLM({
+          prompt: `Analyse this user statement: "${sanitizedPrompt}".
+
+Extract emotional subtext, not just literal words. Examples:
+- "I had a rough day" = sad/tired
+- "can't sleep, mind racing" = anxious/intense
+- "just got back from a run" = motivated/hype
+- "feeling nostalgic" = cozy/sad
+- "need to switch off" = tired/bored
+
+Return:
+- mood: one of [happy, sad, anxious, romantic, tired, motivated, bored, cozy, intense, thrilling, silly]
+- energy: one of [low, medium, high]
+- themes: 3-5 narrative themes that would resonate (e.g. ["underdog triumph", "found family", "escapism", "slow burn", "redemption"])
+- avoid_themes: 2-4 themes that would CLASH with this mood (e.g. for "sad" avoid ["nihilism", "bleak endings"])`,
+          response_json_schema: {
+            type: "object",
+            properties: {
+              mood: { type: "string", enum: ["happy", "sad", "anxious", "romantic", "tired", "motivated", "bored", "cozy", "intense", "thrilling", "silly"] },
+              energy: { type: "string", enum: ["low", "medium", "high"] },
+              themes: { type: "array", items: { type: "string" } },
+              avoid_themes: { type: "array", items: { type: "string" } }
+            },
+            required: ["mood", "energy", "themes", "avoid_themes"]
+          }
+        });
+        if (moodRes?.mood) analysis = moodRes;
+      }
+
+      criteria = { ...criteria, mood: analysis.mood, energy: analysis.energy };
+      setUserCriteria(criteria);
+
+      // Step 2 — Movie selection: real, well-matched picks driven by themes
+      const moodNuance = {
+        happy: "light comedies OR feel-good dramas",
+        sad: "cathartic emotional films, NOT depressing/bleak",
+        anxious: "gripping thrillers or absorbing dramas, NOT horror",
+        romantic: "chemistry-driven stories, not just generic romcoms",
+        tired: "easy-watching comfort films, low cognitive load",
+        cozy: "easy-watching comfort films, warm and familiar",
+        motivated: "sports / heist / comeback / underdog stories",
+        bored: "high-concept, surprising, fresh storytelling",
+        intense: "tightly plotted dramas or psychological thrillers",
+        thrilling: "high-stakes action or suspense",
+        silly: "absurd comedies, off-the-wall humour"
+      }[analysis.mood] || "well-matched films";
 
       const newMoviesRaw = await base44.integrations.Core.InvokeLLM({
-        prompt: `${userInputBlock}${prefsPrompt}
-Pick 5 real movies that truly match. Return the chosen mood + energy too.
-Rules: match the vibe precisely; mix decades/genres; avoid stereotypical picks. Don't repeat: ${excludeTitles.join(", ")}. Variation: ${randomSeed}. Leave poster_url empty.`,
+        prompt: `Pick 5 movies for mood "${analysis.mood}" (energy "${analysis.energy}").
+Nuance: ${moodNuance}.${prefsPrompt}
+
+Select movies that strongly feature these narrative themes: ${analysis.themes.join(', ') || 'general fit'}.
+Avoid movies with these themes: ${analysis.avoid_themes.join(', ') || 'none'}.
+
+CRITICAL RULES:
+- Only recommend movies that ACTUALLY EXIST and have an IMDb page. Do not invent or hallucinate titles.
+- Prioritise critically acclaimed or cult-favourite films over generic blockbusters.
+- Mix decades and genres; avoid stereotypical / obvious picks.
+- Don't repeat: ${excludeTitles.join(", ")}.
+- Variation seed: ${randomSeed}. Leave poster_url empty.`,
         response_json_schema: {
           type: "object",
           properties: {
-            mood: { type: "string", enum: ["happy", "sad", "anxious", "romantic", "tired", "motivated", "bored", "cozy", "intense", "thrilling", "silly"] },
-            energy: { type: "string", enum: ["low", "medium", "high"] },
             movies: {
               type: "array",
               items: {
@@ -133,27 +193,33 @@ Rules: match the vibe precisely; mix decades/genres; avoid stereotypical picks. 
               }
             }
           },
-          required: ["mood", "energy", "movies"]
+          required: ["movies"]
         }
       });
 
-      // Use AI-inferred mood/energy when user gave a natural language prompt
-      if (sanitizedPrompt && newMoviesRaw?.mood && newMoviesRaw?.energy) {
-        criteria = { ...criteria, mood: newMoviesRaw.mood, energy: newMoviesRaw.energy };
-      }
-      setUserCriteria(criteria);
-
       let topPicks = [];
       if (newMoviesRaw?.movies?.length > 0) {
+        // Fetch TMDB posters for all AI-picked movies in parallel BEFORE rendering
+        const postersByTitle = new Map();
+        await Promise.all(newMoviesRaw.movies.map(async (m) => {
+          const { poster_url, tmdb_id } = await fetchPosterFor(m);
+          postersByTitle.set(m.title.trim().toLowerCase(), { poster_url, tmdb_id });
+        }));
+
         const moviesToCreate = newMoviesRaw.movies
           .filter(m => !existingTitles.has(m.title.toLowerCase()) && !seenTitles.has(m.title.toLowerCase()))
-          .map(m => ({
-            ...m,
-            primary_mood: criteria.mood,
-            energy_level: m.energy_level || criteria.energy,
-            platform: "Streaming",
-            streaming_providers: m.streaming_providers || []
-          }));
+          .map(m => {
+            const poster = postersByTitle.get(m.title.trim().toLowerCase()) || {};
+            return {
+              ...m,
+              primary_mood: criteria.mood,
+              energy_level: m.energy_level || criteria.energy,
+              platform: "Streaming",
+              streaming_providers: m.streaming_providers || [],
+              poster_url: poster.poster_url || m.poster_url || "",
+              ...(poster.tmdb_id ? { tmdb_id: poster.tmdb_id } : {})
+            };
+          });
 
         const newTitleSet = new Set(newMoviesRaw.movies.map(m => m.title.trim().toLowerCase()));
         const existingMatches = allMovies.filter(m => newTitleSet.has(m.title.trim().toLowerCase()));
@@ -172,6 +238,13 @@ Rules: match the vibe precisely; mix decades/genres; avoid stereotypical picks. 
           seen.add(key);
           return true;
         }).slice(0, 5);
+
+        // Backfill posters for any existingMatches that lacked them (DB rows without poster_url)
+        topPicks = topPicks.map(m => {
+          if (m.poster_url) return m;
+          const poster = postersByTitle.get(m.title?.trim().toLowerCase()) || {};
+          return poster.poster_url ? { ...m, ...poster } : m;
+        });
       }
 
       // Fallback: if AI returned nothing, use unseen movies from DB matching the mood, shuffled
@@ -184,11 +257,7 @@ Rules: match the vibe precisely; mix decades/genres; avoid stereotypical picks. 
       }
 
       setRecommendations(topPicks);
-      
       setStep('results');
-      
-      // Fetch missing images for the new picks
-      enrichMoviesWithImages(topPicks);
     } catch (error) {
       console.error("Error fetching recommendations:", error);
     } finally {
