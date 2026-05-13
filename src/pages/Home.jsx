@@ -165,15 +165,16 @@ Rules: match the mood; mix decades/genres; avoid stereotypical picks. Don't repe
             streaming_providers: m.streaming_providers || []
           }));
 
-        // Use AI results immediately (with temp ids) — persist in background
         const newTitleSet = new Set(newMoviesRaw.movies.map(m => m.title.toLowerCase()));
         const existingMatches = allMovies.filter(m => newTitleSet.has(m.title.toLowerCase()));
-        const tempNew = moviesToCreate.map((m, i) => ({ ...m, id: `temp-${Date.now()}-${i}` }));
-        topPicks = [...existingMatches, ...tempNew].slice(0, 5);
 
+        let createdMovies = [];
         if (moviesToCreate.length > 0) {
-          base44.entities.Movie.bulkCreate(moviesToCreate); // fire-and-forget
+          const result = await base44.entities.Movie.bulkCreate(moviesToCreate);
+          createdMovies = Array.isArray(result) ? result : (result?.items || result?.records || []);
         }
+
+        topPicks = [...existingMatches, ...createdMovies].slice(0, 5);
       }
 
       // Fallback: if AI returned nothing, use unseen movies from DB matching the mood, shuffled
