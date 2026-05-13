@@ -4,7 +4,7 @@ import { Clock, Tag, Tv, Check, RefreshCw, Share2, PlayCircle, Info, Youtube, Us
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
-export default function MovieCard({ movie, onWatch, onReject }) {
+export default function MovieCard({ movie, onWatch, onReject, onPosterError }) {
   const [isHovered, setIsHovered] = useState(false);
   const [imgError, setImgError] = useState(false);
   const [showDeepInfo, setShowDeepInfo] = useState(false);
@@ -26,7 +26,10 @@ export default function MovieCard({ movie, onWatch, onReject }) {
             src={movie.poster_url} 
             alt={movie.title} 
             className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" 
-            onError={() => setImgError(true)}
+            onError={() => {
+              setImgError(true);
+              onPosterError?.(movie);
+            }}
           />
         ) : (
           <div className="text-9xl font-black text-white/10 select-none">

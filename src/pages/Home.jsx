@@ -38,43 +38,30 @@ export default function Home() {
   }, []);
 
   // Search Logic
-  // Helper to fetch images for movies that miss them (Parallel)
+  // Helper to fetch reliable TMDB posters for movies that miss them
+  const updateMoviePoster = async (movie) => {
+    const response = await base44.functions.invoke('fetchMoviePoster', {
+      title: movie.title,
+      year: movie.year
+    });
+
+    const { poster_url, tmdb_id } = response.data || {};
+    if (!poster_url) return;
+
+    const updateData = { poster_url };
+    if (tmdb_id) updateData.tmdb_id = tmdb_id;
+
+    base44.entities.Movie.update(movie.id, updateData);
+    setRecommendations(prev =>
+      prev.map(p => p.id === movie.id ? { ...p, ...updateData } : p)
+    );
+  };
+
   const enrichMoviesWithImages = async (movies) => {
     const missingImages = movies.filter(m => !m.poster_url);
     if (missingImages.length === 0) return;
 
-    // Process in parallel for speed
-    await Promise.all(missingImages.map(async (movie) => {
-      try {
-        const res = await base44.integrations.Core.InvokeLLM({
-          prompt: `Find the official movie poster URL for "${movie.title}" (${movie.year}).
-                   Return a direct link to a high-quality JPG/PNG image.
-                   Prioritize: TMDB (image.tmdb.org), Amazon, or Wikipedia.
-                   If you can't find a high-res one, find a decent one.`,
-          add_context_from_internet: true,
-          model: "gemini_3_1_pro",
-          response_json_schema: {
-            type: "object",
-            properties: {
-              poster_url: { type: "string" }
-            },
-            required: ["poster_url"]
-          }
-        });
-
-        if (res?.poster_url) {
-          // Update DB
-          base44.entities.Movie.update(movie.id, { poster_url: res.poster_url });
-          
-          // Update UI instantly
-          setRecommendations(prev => 
-            prev.map(p => p.id === movie.id ? { ...p, poster_url: res.poster_url } : p)
-          );
-        }
-      } catch (e) {
-        console.error("Failed image fetch for:", movie.title);
-      }
-    }));
+    await Promise.all(missingImages.map(updateMoviePoster));
   };
 
   // Search Logic
@@ -410,6 +397,7 @@ Also extract any specific nuances, sub-genres, or stylistic preferences mentione
                       movie={movie} 
                       onWatch={handleWatch}
                       onReject={handleReject}
+                      onPosterError={updateMoviePoster}
                     />
                   ))}
                 </AnimatePresence>
