@@ -155,8 +155,8 @@ Rules: match the vibe precisely; mix decades/genres; avoid stereotypical picks. 
             streaming_providers: m.streaming_providers || []
           }));
 
-        const newTitleSet = new Set(newMoviesRaw.movies.map(m => m.title.toLowerCase()));
-        const existingMatches = allMovies.filter(m => newTitleSet.has(m.title.toLowerCase()));
+        const newTitleSet = new Set(newMoviesRaw.movies.map(m => m.title.trim().toLowerCase()));
+        const existingMatches = allMovies.filter(m => newTitleSet.has(m.title.trim().toLowerCase()));
 
         let createdMovies = [];
         if (moviesToCreate.length > 0) {
@@ -164,7 +164,14 @@ Rules: match the vibe precisely; mix decades/genres; avoid stereotypical picks. 
           createdMovies = Array.isArray(result) ? result : (result?.items || result?.records || []);
         }
 
-        topPicks = [...existingMatches, ...createdMovies].slice(0, 5);
+        // Dedupe by normalized title (existing DB matches take precedence over newly created)
+        const seen = new Set();
+        topPicks = [...existingMatches, ...createdMovies].filter(m => {
+          const key = m.title?.trim().toLowerCase();
+          if (!key || seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        }).slice(0, 5);
       }
 
       // Fallback: if AI returned nothing, use unseen movies from DB matching the mood, shuffled
