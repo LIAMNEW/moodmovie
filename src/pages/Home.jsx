@@ -112,115 +112,107 @@ Also extract any specific nuances, sub-genres, or stylistic preferences mentione
 
       setUserCriteria(criteria);
 
-      // 1. Fetch movies
-      const allMovies = await base44.entities.Movie.list(null, 100);
+      // 1. Fetch existing movies & user
+      const allMovies = await base44.entities.Movie.list(null, 200);
       const user = await base44.auth.me().catch(() => null);
-      console.log('Fetched movies:', allMovies.length);
-      
-      // 2. Filter & Rank
-      // Filter out movies user has already watched or skipped
+
       const seenTitles = new Set(userHistory.map(h => h.movie_title.toLowerCase()));
+      const existingTitles = new Set(allMovies.map(m => m.title.toLowerCase()));
 
-      let filtered = allMovies.filter(m => 
-        m.primary_mood?.toLowerCase() === criteria.mood?.toLowerCase() && 
-        !seenTitles.has(m.title.toLowerCase())
-      );
+      // 2. ALWAYS ask AI for fresh picks matching the user's specific mood + description
+      const promptNuance = criteria.nuance ? `User specifically wants: ${criteria.nuance}.` : "";
+      const userPromptText = initialCriteria.prompt ? `Original user description: "${initialCriteria.prompt.slice(0, 500).replace(/[<>]/g, "")}".` : "";
 
-      // 3. EXPANSIVE MODE: If we don't have enough movies, generate new ones
-      if (filtered.length < 5) {
-        console.log("Expanding library with AI...");
-        const promptNuance = criteria.nuance ? `Focus specifically on: ${criteria.nuance}.` : "";
+      let prefsPrompt = "";
+      if (user) {
+        if (user.favorite_genres?.length > 0) prefsPrompt += `\nFavorite genres: ${user.favorite_genres.join(', ')}.`;
+        if (user.favorite_directors) prefsPrompt += `\nFavorite directors: ${user.favorite_directors}.`;
+        if (user.favorite_actors) prefsPrompt += `\nFavorite actors: ${user.favorite_actors}.`;
+        if (user.excluded_content) prefsPrompt += `\nSTRICTLY EXCLUDE: ${user.excluded_content}.`;
+      }
 
-        // Get recent watched movies for context
-        const recentWatched = userHistory
-          .filter(h => h.action === 'watched')
-          .slice(0, 5)
-          .map(h => h.movie_title)
-          .join(", ");
+      // Build exclusion list: previously shown + already seen
+      const excludeTitles = Array.from(new Set([...existingTitles, ...seenTitles])).slice(0, 150);
+      const randomSeed = Math.random().toString(36).slice(2, 8);
 
-        const diversityPrompt = recentWatched 
-          ? `User recently watched: ${recentWatched}. Suggest diverse options.` 
-          : "";
+      const newMoviesRaw = await base44.integrations.Core.InvokeLLM({
+        prompt: `You are a movie recommender. Suggest 5 UNIQUE, REAL movies that match a user feeling "${criteria.mood}" with "${criteria.energy}" energy.
 
-        let prefsPrompt = "";
-        if (user) {
-          if (user.favorite_genres?.length > 0) prefsPrompt += `\nUser's favorite genres: ${user.favorite_genres.join(', ')}.`;
-          if (user.favorite_directors) prefsPrompt += `\nUser's favorite directors: ${user.favorite_directors}.`;
-          if (user.favorite_actors) prefsPrompt += `\nUser's favorite actors: ${user.favorite_actors}.`;
-          if (user.excluded_content) prefsPrompt += `\nSTRICTLY EXCLUDE movies with: ${user.excluded_content}.`;
-        }
+${userPromptText}
+${promptNuance}
+${prefsPrompt}
 
-        const newMoviesRaw = await base44.integrations.Core.InvokeLLM({
-          prompt: `Act as a movie database API. Find 5 UNIQUE, REAL movie recommendations for a user feeling "${criteria.mood}" with "${criteria.energy}" energy.
-                   
-                   CRITICAL DIVERSITY RULES:
-                   1. Mix Decades: Include movies from at least 3 different decades (e.g. 80s, 90s, 2010s).
-                   2. Mix Genres: Even within "${criteria.mood}", vary the genres (e.g. Animation, Indie, Blockbuster, Foreign).
-                   3. The Wildcard: The 5th movie MUST be a "Wildcard" - a movie that fits a slightly different mood/energy but would still appeal to the user (e.g. if 'happy', try 'motivated' or 'silly').
-                   
-                   ${prefsPrompt}
-                   ${promptNuance}
-                   ${diversityPrompt}
-                   Exclude these existing movies: ${allMovies.map(m => m.title).join(", ")}.
-                   Also exclude: ${Array.from(seenTitles).join(", ")}.
-                   
-                   Return detailed metadata including director, top cast, IMDb rating, and real current US streaming providers with their direct watch URLs.
-                   For 'poster_url', leave it empty string, we will fetch it later.`,
-          add_context_from_internet: true,
-          model: "gemini_3_1_pro",
-          response_json_schema: {
-            type: "object",
-            properties: {
-              movies: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    title: { type: "string" },
-                    year: { type: "number" },
-                    description: { type: "string" },
-                    duration_minutes: { type: "number" },
-                    primary_mood: { type: "string", enum: ["happy", "sad", "anxious", "romantic", "tired", "motivated", "bored", "cozy", "intense", "thrilling", "silly"] },
-                    energy_level: { type: "string", enum: ["low", "medium", "high"] },
-                    genres: { type: "array", items: { type: "string" } },
-                    tags: { type: "array", items: { type: "string" } },
-                    director: { type: "string" },
-                    cast: { type: "array", items: { type: "string" } },
-                    imdb_rating: { type: "number" },
-                    streaming_providers: { type: "array", items: { type: "object", properties: { name: { type: "string" }, url: { type: "string" } } } }
-                  },
-                  required: ["title", "year", "primary_mood", "energy_level", "streaming_providers"]
-                }
+CRITICAL RULES:
+1. Every movie MUST genuinely match the mood "${criteria.mood}" and the user's description above.
+2. Diversity: mix at least 3 different decades and varied genres/styles.
+3. DO NOT suggest any of these (already shown or watched): ${excludeTitles.join(", ")}.
+4. Pick fresh, less-obvious choices — avoid the most stereotypical picks for this mood.
+5. Variation token (use to randomize your choices, do not mention): ${randomSeed}.
+
+Return real metadata: director, top cast, IMDb rating, and real current US streaming providers with direct watch URLs.
+Leave poster_url empty — it will be fetched separately.`,
+        add_context_from_internet: true,
+        model: "gemini_3_1_pro",
+        response_json_schema: {
+          type: "object",
+          properties: {
+            movies: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  title: { type: "string" },
+                  year: { type: "number" },
+                  description: { type: "string" },
+                  duration_minutes: { type: "number" },
+                  primary_mood: { type: "string", enum: ["happy", "sad", "anxious", "romantic", "tired", "motivated", "bored", "cozy", "intense", "thrilling", "silly"] },
+                  energy_level: { type: "string", enum: ["low", "medium", "high"] },
+                  genres: { type: "array", items: { type: "string" } },
+                  tags: { type: "array", items: { type: "string" } },
+                  director: { type: "string" },
+                  cast: { type: "array", items: { type: "string" } },
+                  imdb_rating: { type: "number" },
+                  streaming_providers: { type: "array", items: { type: "object", properties: { name: { type: "string" }, url: { type: "string" } } } }
+                },
+                required: ["title", "year", "primary_mood", "energy_level", "streaming_providers"]
               }
             }
           }
-        });
+        }
+      });
 
-        if (newMoviesRaw?.movies?.length > 0) {
-          // Normalize and Insert new movies
-          const moviesToCreate = newMoviesRaw.movies.map(m => ({
+      let topPicks = [];
+      if (newMoviesRaw?.movies?.length > 0) {
+        // Force the mood we asked for so they show up under this category, and dedupe vs DB
+        const moviesToCreate = newMoviesRaw.movies
+          .filter(m => !existingTitles.has(m.title.toLowerCase()) && !seenTitles.has(m.title.toLowerCase()))
+          .map(m => ({
             ...m,
-            // Do NOT enforce strict mood/energy here to allow for the Wildcard and Diversity
+            primary_mood: criteria.mood,
+            energy_level: m.energy_level || criteria.energy,
             platform: "Streaming",
             streaming_providers: m.streaming_providers || []
           }));
 
+        if (moviesToCreate.length > 0) {
           await base44.entities.Movie.bulkCreate(moviesToCreate);
-          
-          // Re-fetch to get IDs and fresh data
-          const updatedAll = await base44.entities.Movie.list(null, 100);
-          
-          // Filter: Match the mood OR match the newly generated titles (so we include the wildcard)
-          const newTitles = new Set(newMoviesRaw.movies.map(m => m.title.toLowerCase()));
-          filtered = updatedAll.filter(m => 
-            m.primary_mood?.toLowerCase() === criteria.mood?.toLowerCase() || 
-            newTitles.has(m.title.toLowerCase())
-          );
         }
+
+        // Re-fetch to get IDs for newly created movies
+        const updatedAll = await base44.entities.Movie.list(null, 200);
+        const newTitleSet = new Set(newMoviesRaw.movies.map(m => m.title.toLowerCase()));
+        topPicks = updatedAll.filter(m => newTitleSet.has(m.title.toLowerCase())).slice(0, 5);
       }
 
-      // Take top 5
-      const topPicks = filtered.slice(0, 5);
+      // Fallback: if AI returned nothing, use unseen movies from DB matching the mood, shuffled
+      if (topPicks.length === 0) {
+        const fallback = allMovies
+          .filter(m => m.primary_mood?.toLowerCase() === criteria.mood?.toLowerCase() && !seenTitles.has(m.title.toLowerCase()))
+          .sort(() => Math.random() - 0.5)
+          .slice(0, 5);
+        topPicks = fallback;
+      }
+
       setRecommendations(topPicks);
       
       setStep('results');
