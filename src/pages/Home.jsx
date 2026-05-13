@@ -78,81 +78,53 @@ export default function Home() {
     let criteria = initialCriteria;
 
     try {
-      // 0. AI Analysis if prompt exists
+      // Start fetching DB + user in parallel with any LLM work
+      const dataPromise = Promise.all([
+        base44.entities.Movie.list(null, 200),
+        base44.auth.me().catch(() => null)
+      ]);
+
+      // 0. Quick mood analysis if prompt exists (lightweight, fast model)
       if (criteria.prompt) {
-        // Security: Sanitization (already validated in UI, but good double check)
-        const sanitizedPrompt = criteria.prompt.slice(0, 500).replace(/[<>]/g, "");
-        
+        const sanitizedPrompt = criteria.prompt.slice(0, 300).replace(/[<>]/g, "");
         const aiRes = await base44.integrations.Core.InvokeLLM({
-          prompt: `Analyze this user mood description and extract the most likely structured criteria for movie recommendation.
-User says: "${sanitizedPrompt}"
-
-Map to these exact values:
-- mood: happy, sad, anxious, romantic, tired, motivated, bored, cozy, intense, thrilling, silly
-- energy: low, medium, high
-
-Be smart. "I want to laugh" = happy/silly. "Long day" = tired/cozy. "Adrenaline" = intense/high.
-Also extract any specific nuances, sub-genres, or stylistic preferences mentioned (e.g. "80s sci-fi", "dark comedy", "Wes Anderson style").`,
+          prompt: `Extract mood + energy from: "${sanitizedPrompt}". mood ∈ [happy,sad,anxious,romantic,tired,motivated,bored,cozy,intense,thrilling,silly]. energy ∈ [low,medium,high]. Also a short "nuance" string (sub-genre/style) if any.`,
           response_json_schema: {
             type: "object",
             properties: {
               mood: { type: "string", enum: ["happy", "sad", "anxious", "romantic", "tired", "motivated", "bored", "cozy", "intense", "thrilling", "silly"] },
               energy: { type: "string", enum: ["low", "medium", "high"] },
-              nuance: { type: "string", description: "Specific sub-genre, style, or topic keywords to refine search" }
+              nuance: { type: "string" }
             },
             required: ["mood", "energy"]
           }
         });
-        
-        // Merge AI results
-        if (aiRes) {
-          criteria = aiRes;
-        }
+        if (aiRes) criteria = aiRes;
       }
 
       setUserCriteria(criteria);
 
-      // 1. Fetch existing movies & user
-      const allMovies = await base44.entities.Movie.list(null, 200);
-      const user = await base44.auth.me().catch(() => null);
-
+      const [allMovies, user] = await dataPromise;
       const seenTitles = new Set(userHistory.map(h => h.movie_title.toLowerCase()));
       const existingTitles = new Set(allMovies.map(m => m.title.toLowerCase()));
 
-      // 2. ALWAYS ask AI for fresh picks matching the user's specific mood + description
-      const promptNuance = criteria.nuance ? `User specifically wants: ${criteria.nuance}.` : "";
-      const userPromptText = initialCriteria.prompt ? `Original user description: "${initialCriteria.prompt.slice(0, 500).replace(/[<>]/g, "")}".` : "";
+      // 2. Ask AI for fresh picks (fast model, no internet context)
+      const promptNuance = criteria.nuance ? `Style/topic: ${criteria.nuance}.` : "";
+      const userPromptText = initialCriteria.prompt ? `User said: "${initialCriteria.prompt.slice(0, 200).replace(/[<>]/g, "")}".` : "";
 
       let prefsPrompt = "";
       if (user) {
-        if (user.favorite_genres?.length > 0) prefsPrompt += `\nFavorite genres: ${user.favorite_genres.join(', ')}.`;
-        if (user.favorite_directors) prefsPrompt += `\nFavorite directors: ${user.favorite_directors}.`;
-        if (user.favorite_actors) prefsPrompt += `\nFavorite actors: ${user.favorite_actors}.`;
-        if (user.excluded_content) prefsPrompt += `\nSTRICTLY EXCLUDE: ${user.excluded_content}.`;
+        if (user.favorite_genres?.length > 0) prefsPrompt += ` Likes: ${user.favorite_genres.join(', ')}.`;
+        if (user.excluded_content) prefsPrompt += ` Exclude: ${user.excluded_content}.`;
       }
 
-      // Build exclusion list: previously shown + already seen
-      const excludeTitles = Array.from(new Set([...existingTitles, ...seenTitles])).slice(0, 150);
+      // Keep exclusion list small to reduce tokens & latency
+      const excludeTitles = Array.from(new Set([...existingTitles, ...seenTitles])).slice(0, 40);
       const randomSeed = Math.random().toString(36).slice(2, 8);
 
       const newMoviesRaw = await base44.integrations.Core.InvokeLLM({
-        prompt: `You are a movie recommender. Suggest 5 UNIQUE, REAL movies that match a user feeling "${criteria.mood}" with "${criteria.energy}" energy.
-
-${userPromptText}
-${promptNuance}
-${prefsPrompt}
-
-CRITICAL RULES:
-1. Every movie MUST genuinely match the mood "${criteria.mood}" and the user's description above.
-2. Diversity: mix at least 3 different decades and varied genres/styles.
-3. DO NOT suggest any of these (already shown or watched): ${excludeTitles.join(", ")}.
-4. Pick fresh, less-obvious choices — avoid the most stereotypical picks for this mood.
-5. Variation token (use to randomize your choices, do not mention): ${randomSeed}.
-
-Return real metadata: director, top cast, IMDb rating, and real current US streaming providers with direct watch URLs.
-Leave poster_url empty — it will be fetched separately.`,
-        add_context_from_internet: true,
-        model: "gemini_3_1_pro",
+        prompt: `Suggest 5 real movies for mood "${criteria.mood}", energy "${criteria.energy}". ${userPromptText} ${promptNuance}${prefsPrompt}
+Rules: match the mood; mix decades/genres; avoid stereotypical picks. Don't repeat: ${excludeTitles.join(", ")}. Variation: ${randomSeed}. Leave poster_url empty.`,
         response_json_schema: {
           type: "object",
           properties: {
@@ -183,7 +155,6 @@ Leave poster_url empty — it will be fetched separately.`,
 
       let topPicks = [];
       if (newMoviesRaw?.movies?.length > 0) {
-        // Force the mood we asked for so they show up under this category, and dedupe vs DB
         const moviesToCreate = newMoviesRaw.movies
           .filter(m => !existingTitles.has(m.title.toLowerCase()) && !seenTitles.has(m.title.toLowerCase()))
           .map(m => ({
@@ -194,14 +165,15 @@ Leave poster_url empty — it will be fetched separately.`,
             streaming_providers: m.streaming_providers || []
           }));
 
-        if (moviesToCreate.length > 0) {
-          await base44.entities.Movie.bulkCreate(moviesToCreate);
-        }
-
-        // Re-fetch to get IDs for newly created movies
-        const updatedAll = await base44.entities.Movie.list(null, 200);
+        // Use AI results immediately (with temp ids) — persist in background
         const newTitleSet = new Set(newMoviesRaw.movies.map(m => m.title.toLowerCase()));
-        topPicks = updatedAll.filter(m => newTitleSet.has(m.title.toLowerCase())).slice(0, 5);
+        const existingMatches = allMovies.filter(m => newTitleSet.has(m.title.toLowerCase()));
+        const tempNew = moviesToCreate.map((m, i) => ({ ...m, id: `temp-${Date.now()}-${i}` }));
+        topPicks = [...existingMatches, ...tempNew].slice(0, 5);
+
+        if (moviesToCreate.length > 0) {
+          base44.entities.Movie.bulkCreate(moviesToCreate); // fire-and-forget
+        }
       }
 
       // Fallback: if AI returned nothing, use unseen movies from DB matching the mood, shuffled
