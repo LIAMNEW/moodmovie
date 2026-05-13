@@ -57,11 +57,9 @@ export default function Home() {
     );
   };
 
-  const enrichMoviesWithImages = async (movies) => {
-    const missingImages = movies.filter(m => !m.poster_url);
-    if (missingImages.length === 0) return;
-
-    await Promise.all(missingImages.map(updateMoviePoster));
+  const enrichMoviesWithImages = (movies) => {
+    // Fire each poster fetch independently so cards update as soon as their image is ready
+    movies.filter(m => !m.poster_url).forEach(m => { updateMoviePoster(m); });
   };
 
   // Search Logic
@@ -78,39 +76,16 @@ export default function Home() {
     let criteria = initialCriteria;
 
     try {
-      // Start fetching DB + user in parallel with any LLM work
-      const dataPromise = Promise.all([
+      // Fetch DB + user in parallel with the LLM call
+      const [allMovies, user] = await Promise.all([
         base44.entities.Movie.list(null, 200),
         base44.auth.me().catch(() => null)
       ]);
 
-      // 0. Quick mood analysis if prompt exists (lightweight, fast model)
-      if (criteria.prompt) {
-        const sanitizedPrompt = criteria.prompt.slice(0, 300).replace(/[<>]/g, "");
-        const aiRes = await base44.integrations.Core.InvokeLLM({
-          prompt: `Extract mood + energy from: "${sanitizedPrompt}". mood ∈ [happy,sad,anxious,romantic,tired,motivated,bored,cozy,intense,thrilling,silly]. energy ∈ [low,medium,high]. Also a short "nuance" string (sub-genre/style) if any.`,
-          response_json_schema: {
-            type: "object",
-            properties: {
-              mood: { type: "string", enum: ["happy", "sad", "anxious", "romantic", "tired", "motivated", "bored", "cozy", "intense", "thrilling", "silly"] },
-              energy: { type: "string", enum: ["low", "medium", "high"] },
-              nuance: { type: "string" }
-            },
-            required: ["mood", "energy"]
-          }
-        });
-        if (aiRes) criteria = aiRes;
-      }
-
-      setUserCriteria(criteria);
-
-      const [allMovies, user] = await dataPromise;
       const seenTitles = new Set(userHistory.map(h => h.movie_title.toLowerCase()));
       const existingTitles = new Set(allMovies.map(m => m.title.toLowerCase()));
 
-      // 2. Ask AI for fresh picks (fast model, no internet context)
-      const promptNuance = criteria.nuance ? `Style/topic: ${criteria.nuance}.` : "";
-      const userPromptText = initialCriteria.prompt ? `User said: "${initialCriteria.prompt.slice(0, 200).replace(/[<>]/g, "")}".` : "";
+      const sanitizedPrompt = criteria.prompt ? criteria.prompt.slice(0, 300).replace(/[<>]/g, "") : "";
 
       let prefsPrompt = "";
       if (user) {
@@ -122,12 +97,20 @@ export default function Home() {
       const excludeTitles = Array.from(new Set([...existingTitles, ...seenTitles])).slice(0, 40);
       const randomSeed = Math.random().toString(36).slice(2, 8);
 
+      // SINGLE LLM call: interpret mood from natural language AND pick 5 movies in one shot
+      const userInputBlock = sanitizedPrompt
+        ? `User said: "${sanitizedPrompt}". Infer the best mood + energy from this.`
+        : `Mood: "${criteria.mood}", energy: "${criteria.energy}".`;
+
       const newMoviesRaw = await base44.integrations.Core.InvokeLLM({
-        prompt: `Suggest 5 real movies for mood "${criteria.mood}", energy "${criteria.energy}". ${userPromptText} ${promptNuance}${prefsPrompt}
-Rules: match the mood; mix decades/genres; avoid stereotypical picks. Don't repeat: ${excludeTitles.join(", ")}. Variation: ${randomSeed}. Leave poster_url empty.`,
+        prompt: `${userInputBlock}${prefsPrompt}
+Pick 5 real movies that truly match. Return the chosen mood + energy too.
+Rules: match the vibe precisely; mix decades/genres; avoid stereotypical picks. Don't repeat: ${excludeTitles.join(", ")}. Variation: ${randomSeed}. Leave poster_url empty.`,
         response_json_schema: {
           type: "object",
           properties: {
+            mood: { type: "string", enum: ["happy", "sad", "anxious", "romantic", "tired", "motivated", "bored", "cozy", "intense", "thrilling", "silly"] },
+            energy: { type: "string", enum: ["low", "medium", "high"] },
             movies: {
               type: "array",
               items: {
@@ -146,12 +129,19 @@ Rules: match the mood; mix decades/genres; avoid stereotypical picks. Don't repe
                   imdb_rating: { type: "number" },
                   streaming_providers: { type: "array", items: { type: "object", properties: { name: { type: "string" }, url: { type: "string" } } } }
                 },
-                required: ["title", "year", "primary_mood", "energy_level", "streaming_providers"]
+                required: ["title", "year", "primary_mood", "energy_level"]
               }
             }
-          }
+          },
+          required: ["mood", "energy", "movies"]
         }
       });
+
+      // Use AI-inferred mood/energy when user gave a natural language prompt
+      if (sanitizedPrompt && newMoviesRaw?.mood && newMoviesRaw?.energy) {
+        criteria = { ...criteria, mood: newMoviesRaw.mood, energy: newMoviesRaw.energy };
+      }
+      setUserCriteria(criteria);
 
       let topPicks = [];
       if (newMoviesRaw?.movies?.length > 0) {
